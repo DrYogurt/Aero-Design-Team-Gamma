@@ -1,0 +1,30 @@
+# pyproject.toml
+[tool.poetry]
+name = "Aerospace-Design-Team-Gamma"
+version = "0.1.0"
+description = "Aerospace Engineering Senior Project Analysis"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyyaml = "^6.0"
+pandoc = "^2.3"
+pypandoc = "^1.11"
+python-frontmatter = "^1.0.0"
+jinja2 = "^3.1.2"
+numpy = "^1.24.0"
+scipy = "^1.10.0"
+matplotlib = "^3.7.0"
+pandas = "^2.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.1"
+black = "^23.3.0"
+isort = "^5.12.0"
+flake8 = "^6.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+# poetry.lock will be generated automatically when you run `poetry install`
