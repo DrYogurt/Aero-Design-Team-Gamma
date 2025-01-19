@@ -1,0 +1,152 @@
+name: Weekly Branch Creation and Protection
+
+on:
+  schedule:
+    - cron: '0 2 * * TUE'  # Runs at 2 AM every Tuesday
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  create-weekly-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for proper branch creation
+          
+      - name: Set up Git config
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+      - name: Calculate week number and create folder
+        run: |
+          # Get date information
+          PREV_WEEK_START=$(date -d "last Tuesday" +%Y-%m-%d)
+          PREV_WEEK_END=$(date -d "last Monday" +%Y-%m-%d)
+          WEEK_NUM=$(date -d "last Tuesday" +%V)
+          YEAR=$(date -d "last Tuesday" +%Y)
+          
+          # Find the latest week number in reports_presentations
+          LAST_WEEK=0
+          if [ -d "reports_presentations" ]; then
+            for dir in reports_presentations/week_*/; do
+              if [ -d "$dir" ]; then
+                NUM=$(echo $dir | grep -o '[0-9]\+$' | sed 's/^0*//')
+                if [ -n "$NUM" ] && [ "$NUM" -gt "$LAST_WEEK" ]; then
+                  LAST_WEEK=$NUM
+                fi
+              fi
+            done
+          fi
+          
+          # Increment week number
+          NEW_WEEK=$((LAST_WEEK + 1))
+          # Pad with zero if single digit
+          PADDED_WEEK=$(printf "%02d" $NEW_WEEK)
+          
+          # Save variables for later steps
+          echo "WEEK_NUM=$NEW_WEEK" >> $GITHUB_ENV
+          echo "PADDED_WEEK=$PADDED_WEEK" >> $GITHUB_ENV
+          echo "YEAR=$YEAR" >> $GITHUB_ENV
+          echo "BRANCH_NAME=week_${YEAR}_${WEEK_NUM}" >> $GITHUB_ENV
+          echo "WEEK_RANGE=${PREV_WEEK_START}_${PREV_WEEK_END}" >> $GITHUB_ENV
+          
+      - name: Create new branch and weekly folder
+        run: |
+          # Create and checkout new branch
+          git checkout -b ${{ env.BRANCH_NAME }}
+          
+          # Create new weekly folder and copy templates
+          mkdir -p "reports_presentations/week_${{ env.PADDED_WEEK }}"
+          cp templates/report_template.tex "reports_presentations/week_${{ env.PADDED_WEEK }}/report.tex"
+          cp templates/presentation_template.tex "reports_presentations/week_${{ env.PADDED_WEEK }}/presentation.tex"
+          
+          # Create initial markdown files
+          cat << EOF > "reports_presentations/week_${{ env.PADDED_WEEK }}/report.md"
+          ---
+          week: ${{ env.WEEK_NUM }}
+          date: $(date -d "last Tuesday" +%Y-%m-%d)
+          ---
+          
+          # Week ${{ env.WEEK_NUM }} Progress Report
+          
+          ## Summary
+          
+          ## Analysis Results
+          
+          ## Next Steps
+          
+          EOF
+          
+          cat << EOF > "reports_presentations/week_${{ env.PADDED_WEEK }}/presentation.md"
+          ---
+          week: ${{ env.WEEK_NUM }}
+          date: $(date -d "last Tuesday" +%Y-%m-%d)
+          ---
+          
+          # Week ${{ env.WEEK_NUM }} Presentation
+          
+          ## Progress Overview
+          
+          ## Key Results
+          
+          ## Next Week's Plan
+          
+          EOF
+          
+          # Commit and push
+          git add .
+          git commit -m "Initialize week ${{ env.WEEK_NUM }} (${{ env.WEEK_RANGE }})"
+          git push origin ${{ env.BRANCH_NAME }}
+          
+      - name: Protect branch
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.repos.updateBranchProtection({
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              branch: process.env.BRANCH_NAME,
+              required_status_checks: null,
+              enforce_admins: true,
+              restrictions: null,
+              required_pull_request_reviews: {
+                required_approving_review_count: 1
+              },
+              allow_force_pushes: false,
+              allow_deletions: false
+            });
+            
+      - name: Update README
+        run: |
+          cat << EOF > README.md
+          # Week ${{ env.WEEK_NUM }} (${{ env.WEEK_RANGE }})
+          
+          ## Repository Structure
+          
+          - \`analysis/\`: Analysis scripts and mathematical models
+          - \`reports_presentations/week_${{ env.PADDED_WEEK }}/\`: This week's report and presentation
+          - \`assets/\`: Figures, data files, and other assets
+          
+          ## Branch Protection
+          
+          This branch is protected. To make changes:
+          1. Create a new branch from this one
+          2. Make your changes
+          3. Submit a pull request
+          4. Get approval from a reviewer
+          
+          ## Important Dates
+          
+          - Week Start: $(date -d "last Tuesday" +%Y-%m-%d)
+          - Week End: $(date -d "last Monday" +%Y-%m-%d)
+          EOF
+          
+          git add README.md
+          git commit -m "Add README for week ${{ env.WEEK_NUM }}"
+          git push origin ${{ env.BRANCH_NAME }}
