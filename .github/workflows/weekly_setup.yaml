@@ -102,26 +102,7 @@ jobs:
           git add .
           git commit -m "Initialize week ${{ env.WEEK_NUM }} (${{ env.WEEK_RANGE }})"
           git push origin ${{ env.BRANCH_NAME }}
-          
-      - name: Protect branch
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.repos.updateBranchProtection({
-              owner: context.repo.owner,
-              repo: context.repo.name,
-              branch: process.env.BRANCH_NAME,
-              required_status_checks: null,
-              enforce_admins: true,
-              restrictions: null,
-              required_pull_request_reviews: {
-                required_approving_review_count: 1
-              },
-              allow_force_pushes: false,
-              allow_deletions: false
-            });
-            
+           
       - name: Update README
         run: |
           cat << EOF > README.md
@@ -133,13 +114,6 @@ jobs:
           - \`reports_presentations/week_${{ env.PADDED_WEEK }}/\`: This week's report and presentation
           - \`assets/\`: Figures, data files, and other assets
           
-          ## Branch Protection
-          
-          This branch is protected. To make changes:
-          1. Create a new branch from this one
-          2. Make your changes
-          3. Submit a pull request
-          4. Get approval from a reviewer
           
           ## Important Dates
           
