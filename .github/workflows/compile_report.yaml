@@ -5,6 +5,12 @@ on:
     paths:
       - 'reports_presentations/**/*.md'  # Only trigger on markdown file changes
       - 'global_variables/variables.yaml'  # Also trigger on variables changes
+  workflow_dispatch:  # Allows manual triggering
+    inputs:
+      week_number:
+        description: 'Week number to compile (leave empty for current week)'
+        required: false
+        type: string
 
 jobs:
   compile-pdfs:
@@ -43,12 +49,17 @@ jobs:
         run: poetry install
         if: steps.cache.outputs.cache-hit != 'true'
         
-      - name: Find current week folder
+      - name: Find week folder
         id: find-week
         run: |
-          # Get current week number and pad it
-          WEEK_NUM=$(date +%V)
-          PADDED_WEEK=$(printf "%02d" $WEEK_NUM)
+          if [[ -n "${{ github.event.inputs.week_number }}" ]]; then
+            # Use manually specified week number
+            PADDED_WEEK=$(printf "%02d" ${{ github.event.inputs.week_number }})
+          else
+            # Get current week number and pad it
+            WEEK_NUM=$(date +%V)
+            PADDED_WEEK=$(printf "%02d" $WEEK_NUM)
+          fi
           echo "WEEK=$PADDED_WEEK" >> $GITHUB_ENV
           
           # Verify the folder exists
