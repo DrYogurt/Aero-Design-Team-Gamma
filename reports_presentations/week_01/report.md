@@ -1,43 +1,59 @@
 ---
-author: Your Name
+author: Team Gamma 
 week: 1
-date: January 17, 2025
+date: January 21, 2025
 ---
 
 # Week 1 Progress Report
 
-## Aerodynamic Analysis Summary
+## Progress Made
 
-Our latest wind tunnel tests have shown promising results. The maximum lift coefficient achieved was {{ aerodynamics.lift_coefficient }}, which exceeds our initial target by 15%. The drag coefficient at cruise conditions was measured at {{ aerodynamics.drag_coefficient }}, indicating good aerodynamic efficiency.
+### Product Breakdown Structure
+- We began by forming an initial product Breakdown
+- We then used this breakdown to begin researching requirements
 
-## Performance Metrics
+### Research Topics Summary
+We began researching: 
+- FAA Requlations on:
+    - Runways
+    - Hangers
+    - Weather conditions
+    - Stability
+    - Safety (fire suppresion and cabin dimensions)
+- Comparable Jets
+    - The A380 was used for many preliminary calculations, as the largest currently operated passenger jet.
 
-Current analysis shows:
-- Maximum range: {{ performance.range }} km
-- Service ceiling: {{ performance.ceiling }} m
-- Maximum thrust: {{ propulsion.thrust }} N
-- Specific fuel consumption: {{ propulsion.specific_fuel_consumption }} g/kN-s
 
-## CFD Analysis Results
+### Requirements
+- Since we are designing a large transport vehicle, the 14 CFR 25 (airworthiness standards for transport category airplanes) was used to determine many of the FAA requirements for the plane.
+- Mission requirements were also categorized.
+- Other "customer requirements" were drafted from mission requirements and regulations. These will be used to guide trade studies for the determination of design requirements.
+- Requirements were drafted in the following categories:
+    - Stability
+    - Passenger loading
+    - Weight
+    - Performance
+    - Operational Internal Components
+    - Passenger components: Windows, seats, bathrooms, food preparation
 
-![CFD Pressure Distribution](../assets/week_01/pressure_distribution.png)
-
-The CFD analysis reveals stable flow patterns around the wing sections. Key observations:
-
-1. No significant flow separation at cruise angles of attack
-2. Pressure distribution matches theoretical predictions
-3. Wingtip vortices are well-contained by our winglet design
+### Weight Calculations
+- Crew weight was found to be ~4,818 lbs
+- Payload weight was found to be ~331,660 lbs
+- Total weight was found to be ~2,233,541 lbs
 
 ## Next Week's Objectives
 
-1. Complete structural analysis of the wing box
-2. Begin integration of propulsion system model
-3. Validate aerodynamic coefficients with additional wind tunnel tests
+### Continued Research
+Next week, we aim to continue researching the above topics. Specific additional research includes:
+- Water Storage
+- Takeoff thrust determination (this will aid in specifying many engine requirements)
 
-## Technical Challenges
+### Trade Studies
 
-The main challenge we're facing is the trade-off between structural weight and aerodynamic performance. Our current design shows:
-
-$$ L/D = \frac{C_L}{C_D} = \frac{{{ aerodynamics.lift_coefficient }}}{{{ aerodynamics.drag_coefficient }}} = {{ aerodynamics.lift_coefficient / aerodynamics.drag_coefficient }} $$
-
-This L/D ratio suggests we're on track to meet our efficiency targets, but further optimization may be needed.
+We aim to begin conducting the following trade studies:
+- Cabin and Seat configuration
+- Cruise thrust requirements
+- Takeoff/Landing thrust requirements
+- Alternative fuselage designs (double fuselage, flying wing, double decker, etc.)
+- Wing geometry
+- Fuel Efficiencies
