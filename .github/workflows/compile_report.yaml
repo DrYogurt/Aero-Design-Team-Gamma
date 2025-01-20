@@ -1,0 +1,90 @@
+name: Compile PDFs
+
+on:
+  push:
+    paths:
+      - 'reports_presentations/**/*.md'  # Only trigger on markdown file changes
+      - 'global_variables/variables.yaml'  # Also trigger on variables changes
+
+jobs:
+  compile-pdfs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-latex-extra texlive-science texlive-publishers texlive-fonts-recommended latexmk
+          
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+          
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: ./.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          
+      - name: Install Dependencies
+        run: poetry install
+        if: steps.cache.outputs.cache-hit != 'true'
+        
+      - name: Find current week folder
+        id: find-week
+        run: |
+          # Get current week number and pad it
+          WEEK_NUM=$(date +%V)
+          PADDED_WEEK=$(printf "%02d" $WEEK_NUM)
+          echo "WEEK=$PADDED_WEEK" >> $GITHUB_ENV
+          
+          # Verify the folder exists
+          if [ ! -d "reports_presentations/week_$PADDED_WEEK" ]; then
+            echo "Error: Folder for week $PADDED_WEEK not found"
+            exit 1
+          fi
+          
+      - name: Compile PDFs
+        run: |
+          WEEK_DIR="reports_presentations/week_${{ env.WEEK }}"
+          
+          # Check if report.md was changed
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "$WEEK_DIR/report.md"; then
+            echo "Compiling report PDF..."
+            poetry run python scripts/md_to_latex.py "$WEEK_DIR/report.md"
+          fi
+          
+          # Check if presentation.md was changed
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "$WEEK_DIR/presentation.md"; then
+            echo "Compiling presentation PDF..."
+            poetry run python scripts/md_to_latex.py "$WEEK_DIR/presentation.md"
+          fi
+          
+      - name: Commit PDFs
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Stage any changed PDFs
+          git add "reports_presentations/week_${{ env.WEEK }}/*.pdf"
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No PDF changes to commit"
+          else
+            git commit -m "Update PDFs for week ${{ env.WEEK }}"
+            git push
+          fi
