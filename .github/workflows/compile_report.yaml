@@ -86,16 +86,23 @@ jobs:
           
       - name: Commit PDFs
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # Stage any changed PDFs
-          git add "reports_presentations/week_${{ env.WEEK }}/*.pdf"
-          
-          # Only commit if there are changes
-          if git diff --staged --quiet; then
-            echo "No PDF changes to commit"
+          # Check if any PDFs exist
+          if compgen -G "reports_presentations/week_${{ env.WEEK }}/*.pdf" > /dev/null; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            # Stage any changed PDFs
+            git add "reports_presentations/week_${{ env.WEEK }}/"*.pdf
+            
+            # Only commit if there are changes
+            if git diff --staged --quiet; then
+              echo "No PDF changes to commit"
+            else
+              git commit -m "Update PDFs for week ${{ env.WEEK }}"
+              git push
+            fi
           else
-            git commit -m "Update PDFs for week ${{ env.WEEK }}"
-            git push
+            echo "No PDFs found in reports_presentations/week_${{ env.WEEK }}"
+            # Exit successfully even though no PDFs were found
+            exit 0
           fi
