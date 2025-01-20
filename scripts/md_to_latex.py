@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-import os, yaml, re, sys
+import os
+import yaml
+import re
 import subprocess
+import sys
 from pathlib import Path
 
 def load_variables():
@@ -51,11 +54,18 @@ def convert_markdown_to_latex(md_path, template_path, variables):
 
 def compile_latex_to_pdf(tex_path):
     """Compile LaTeX to PDF using pdflatex"""
+    working_dir = tex_path.parent
     subprocess.run([
         'pdflatex',
         '-interaction=nonstopmode',
-        str(tex_path)
-    ])
+        str(tex_path.name)  # Use just filename since we're changing directory
+    ], cwd=working_dir)  # Set working directory to the input file's location
+    
+    # Clean up auxiliary files
+    for ext in ['.aux', '.log', '.nav', '.out', '.snm', '.toc']:
+        aux_file = working_dir / f"{tex_path.stem}{ext}"  # Proper path concatenation
+        if aux_file.exists():
+            aux_file.unlink()
 
 def main():
     # Load global variables
