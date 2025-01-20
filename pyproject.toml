@@ -2,8 +2,9 @@
 [tool.poetry]
 name = "Aerospace-Design-Team-Gamma"
 version = "0.1.0"
-description = "Aerospace Engineering Senior Project Analysis"
-authors = ["Your Name <your.email@example.com>"]
+description = "Aerospace Design Analysis"
+authors = ["Ben Rubinstein <bzr4@case.edu>"]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
