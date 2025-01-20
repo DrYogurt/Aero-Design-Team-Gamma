@@ -41,12 +41,17 @@ We began researching:
 - Payload weight was found to be ~331,660 lbs
 - Total weight was found to be ~2,233,541 lbs
 
+### Mission Diagram
+The first draft of the mission diagram was created:
+![Mission Diagram](../assets/week_01/mission_diagram.png)
+
 ## Next Week's Objectives
 
 ### Continued Research
 Next week, we aim to continue researching the above topics. Specific additional research includes:
 - Water Storage
 - Takeoff thrust determination (this will aid in specifying many engine requirements)
+- Taining requirements
 
 ### Trade Studies
 

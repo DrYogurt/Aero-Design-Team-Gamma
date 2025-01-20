@@ -1,15 +1,29 @@
 ---
 week: {{ week }}
 date: {{ date }}
+author: Team Gamma
 ---
 
-# Week {{ week }} Progress Report
+# Overview
 
-## Summary
+## Progress Highlights
 - 
 
-## Results
+## Key Results
 - 
 
-## Next Steps
+# Technical Updates
+
+## Accomplishments
 - 
+
+## Challenges
+- 
+
+# Next Steps
+
+## Plans
+- 
+
+## Requirements
+-
