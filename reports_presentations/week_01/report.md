@@ -11,6 +11,7 @@ date: January 21, 2025
 
 ## Research Topics Summary
 We began researching: 
+
 - FAA Requlations on:
     - Runways
     - Hangers
@@ -19,13 +20,14 @@ We began researching:
     - Safety (fire suppresion and cabin dimensions)
 - Comparable Jets
     - The A380 was used for many preliminary calculations, as the largest currently operated passenger jet.
-
+- Geometry using ch. 5&6 of Raymer
 ## Requirements
 - Since we are designing a large transport vehicle, the 14 CFR 25 (airworthiness standards for transport category airplanes) was used to determine many of the FAA requirements for the plane.
 - Mission requirements were also categorized.
 - Other "customer requirements" were drafted from mission requirements and regulations. These will be used to guide trade studies for the determination of design requirements.
 - Requirements were drafted in the following categories:
     - Stability
+    - Structure
     - Passenger loading
     - Weight
     - Performance
@@ -44,6 +46,7 @@ Mission diagram, project breakdown structure diagram and preliminary function bl
 
 ## Continued Research
 Next week, we aim to continue researching the above topics. Specific additional research includes:
+
 - Water Storage
 - Takeoff thrust determination (this will aid in specifying many engine requirements)
 - Taining requirements
@@ -51,9 +54,11 @@ Next week, we aim to continue researching the above topics. Specific additional 
 ## Trade Studies
 
 We aim to begin conducting the following trade studies:
+
 - Cabin and Seat configuration
 - Cruise thrust requirements
 - Takeoff/Landing thrust requirements
 - Alternative fuselage designs (double fuselage, flying wing, double decker, etc.)
 - Wing geometry
 - Fuel Efficiencies
+- Refine W/S and L/D to be more in line with mission parameters

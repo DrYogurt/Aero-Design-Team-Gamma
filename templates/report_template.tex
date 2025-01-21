@@ -1,3 +1,44 @@
+\documentclass[10pt,twocolumn]{article}  % Added twocolumn option
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage[margin=0.3in,columnsep=0.2in]{geometry}  % Added columnsep
+
+% Make sections more compact
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{1.2ex plus 1ex minus .2ex}{0.5ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{1ex plus 1ex minus .2ex}{0.3ex plus .2ex}
+
+% Adjust list spacing
+\usepackage{enumitem}
+\setlist{nosep}  % Remove vertical spacing between items
+\setlist{leftmargin=*}  % Align with left margin
+
+% Reduce paragraph spacing
+\setlength{\parskip}{0.2ex plus 0.1ex minus 0.1ex}
+\setlength{\parindent}{0pt}
+
+% Make title more compact
+\usepackage{titling}
+\setlength{\droptitle}{-1em}  % Move title up
+\pretitle{\begin{center}\Large}  % Smaller title
+\posttitle{\par\end{center}}
+\preauthor{\begin{center}\normalsize}  % Smaller author
+\postauthor{\end{center}}
+\predate{\begin{center}\normalsize}  % Smaller date
+\postdate{\end{center}}
+
+
+\title{Week $week$ Progress Report}
+\author{$author$}
+\date{$date$}
+
+\begin{document}
+\maketitle
+$body$
+\end{document}% report_template.tex
 \documentclass[10pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
@@ -30,7 +71,7 @@
 \predate{\begin{center}\normalsize}  % Smaller date
 \postdate{\end{center}}
 
-\title{Aerospace Design Weekly Progress Report}
+\title{Aerospace Senior Project Weekly Report}
 \author{$author$}
 \date{Week $week$ - $date$}
 
@@ -40,3 +81,29 @@
 $body$
 
 \end{document}
+
+% presentation_template.tex
+\documentclass{beamer}
+\usetheme{Madrid}
+\usecolortheme{whale}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{siunitx}
+
+\title{Aerospace Senior Project Progress}
+\author{$author$}
+\date{Week $week$ - $date$}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\frame{
+\frametitle{Contents}
+\tableofcontents
+}
+
+$body$
+
+\end{document}
+
