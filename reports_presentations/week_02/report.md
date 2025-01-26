@@ -6,34 +6,34 @@ date: January 28, 2025
 # Progress Made
 
 ## Trade Studies
-- We created a spreadsheet to test the effects a set of inputs would have on our desired outputs
-- The main inputs are:
+- We created a spreadsheet to allow us to perform trade studies to derive our requirements
+- The main inputs of the spreadsheet are:
     - Weight
     - Thrust available
     - Aspect ratio
     - Wing span
     - Oswald efficiency factor
-    - Cd_0
+    - Parasitic drag coefficient
     - TSFC
-- The main outputs are:
+- The main outputs of the spreadsheet are:
     - Max ceiling
     - Cruise range
     - Take off distance
  
 ## Mission Diagram
-- We improved the 2D mission diagram with an animation of the aircraft following the flight path and increased readability
+- We updated the 2D mission diagram with an animation of the aircraft following the flight path and increased readability of the diagram
 
 ## Requirements
-- Following the feedback given on our last progress report, we began deriving requirements based on the results of the trades studies performed
+- We began deriving requirements based on the results of the trades studies we performed
 
 ## Product Breakdown Structure
-- Updated PDS to reflect new derived requirements
+- Updated PDS to reflect new derived requirements from trade studies
 
 ## Additional Work
-Cabin and seat configurations have been looked into and considered
+Cabin and seat configurations have had preliminary research done
 
 # Next Week's Objectives
 
 ## Continued Requirement Derivation
-Next week, we aim to continue deriving more requirements in preperation for the SSR. 
+Next week, we aim to continue deriving more requirements in preperation for the SSR 
 
