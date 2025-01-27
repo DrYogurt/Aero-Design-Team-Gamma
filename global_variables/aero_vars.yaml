@@ -1,0 +1,270 @@
+aero:
+  coefficients:
+    drag:
+      induced_empty:
+        definitions:
+        - C_L_empty**2 / (pi * e * AR)
+        name: Induced drag coefficient
+        symbol: C_Di_empty
+      induced_full:
+        definitions:
+        - C_L_full**2 / (pi * e * AR)
+        name: Induced drag coefficient
+        symbol: C_Di_full
+      parasitic:
+        minimum: 0
+        name: Parasitic drag coefficient
+        symbol: C_D0
+      total_drag_empty:
+        definitions:
+        - C_D0 + C_Di_empty
+        name: Total drag coefficient
+        symbol: C_D_empty
+      total_drag_full:
+        definitions:
+        - C_D0 + C_Di_full
+        name: Total drag coefficient
+        symbol: C_D_full
+    dummy:
+      gravity:
+        definitions:
+        - '32.174'
+        name: Acceleration due to gravity
+        symbol: g
+      velocity:
+        minimum: 0
+        name: Velocity
+        symbol: V
+      weight:
+        minimum: 0
+        name: Weight
+        symbol: W
+    lift:
+      basic:
+        definitions:
+        - 2 * W / (rho * V**2 * S_)
+        name: Lift coefficient
+        symbol: C_L
+      max:
+        maximum: 1.8
+        minimum: 0
+        name: Maximum lift coefficient
+        symbol: C_Lmax
+    lift_empty:
+      definitions:
+      - 2 * (W_max - W_f) / (rho * V**2 * S_)
+      name: Lift coefficient at empty weight
+      symbol: C_L_empty
+    lift_full:
+      definitions:
+      - 2 * W_max / (rho * V**2 * S_)
+      name: Lift coefficient at max weight
+      symbol: C_L_full
+aircraft:
+  engine:
+    TSFC:
+      minimum: 0
+      name: Thrust specific fuel consumption
+      symbol: TSFC
+    thrust:
+      available:
+        minimum: 0
+        name: Available thrust
+        symbol: T_A0
+      static:
+        minimum: 0
+        name: Static thrust
+        symbol: T_s
+  weights:
+    empty:
+      definitions:
+      - We_Wmax * W_max
+      name: Empty weight
+      symbol: W_e
+    empty_fraction:
+      maximum: 1
+      minimum: 0
+      name: Empty weight fraction
+      symbol: We_Wmax
+    fuel:
+      definitions:
+      - W_max - W_p - W_e
+      name: Fuel weight
+      symbol: W_f
+    max:
+      minimum: 0
+      name: Maximum takeoff weight
+      symbol: W_max
+    passenger:
+      count:
+        minimum: 1200
+        name: Number of passengers
+        symbol: n_pax
+      unit:
+        minimum: 200
+        name: Weight per passenger
+        symbol: W_pax
+    payload:
+      definitions:
+      - n_pax * W_pax
+      name: Payload weight
+      symbol: W_p
+  wing:
+    area:
+      minimum: 0
+      name: Wing area
+      symbol: S_
+    aspect_ratio:
+      definitions:
+      - b**2 / S_
+      name: Aspect ratio
+      symbol: AR
+    efficiency:
+      maximum: 1
+      minimum: 0
+      name: Oswald efficiency factor
+      symbol: e
+    span:
+      minimum: 0
+      name: Wing span
+      symbol: b
+atmosphere:
+  density:
+    function_args:
+    - h
+    function_str: 'lambda h: Atmosphere(h).density'
+    name: Air density
+    symbol: rho
+  pressure:
+    function_args:
+    - h
+    function_str: 'lambda h: Atmosphere(h).pressure'
+    name: Air pressure
+    symbol: P
+  temperature:
+    function_args:
+    - h
+    function_str: 'lambda h: Atmosphere(h).temperature'
+    name: Air temperature
+    symbol: T
+performance:
+  ceiling:
+    density_ratio:
+      definitions:
+      - (4 * A * C / B**2)**0.5
+      name: Maximum ceiling density ratio
+      symbol: sigma_max
+  climb:
+    max_rate:
+      definitions:
+      - (A * V_RC_max**3 + B * V_RC_max + C/V_RC_max) / (-W)
+      name: Maximum rate of climb
+      symbol: RC_max
+  coefficients:
+    A:
+      definitions:
+      - rho * C_D0 * S_ / 2
+      name: Coefficient A
+      symbol: A
+    B:
+      definitions:
+      - -T_A0
+      name: Coefficient B
+      symbol: B
+    C:
+      definitions:
+      - 2 * W**2 / (rho * S_ * e * AR * pi)
+      name: Coefficient C
+      symbol: C
+  range:
+    cruise:
+      definitions:
+      - (2/TSFC) * (2/(rho*S_)**(1/2)) * CL_CD_ratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
+      name: Cruise range
+      symbol: R
+    lift_drag_ratio:
+      definitions:
+      - 0.5 * ((C_L_full)**(1/2)/C_D_full + (C_L_empty)**(1/2)/C_D_empty)
+      name: Average lift-to-drag ratio
+      symbol: CL_CD_ratio
+  takeoff:
+    climb_rate:
+      definitions:
+      - (P_A - P_R) / W
+      name: Climb rate
+      symbol: RC
+    distance:
+      climb:
+        definitions:
+        - h_obstacle / RC * V_1
+        name: Climb distance
+        symbol: S_2
+      ground:
+        definitions:
+        - W/(2*g) * (V_1**2)/(F_s - F_1) * log(F_s/F_1)
+        name: Ground roll distance
+        symbol: S_1
+      total:
+        definitions:
+        - S_1 + S_2
+        name: Total takeoff distance
+        symbol: S_TO
+    drag:
+      definitions:
+      - C_D0 * rho * V_1**2 * S_ / 2
+      name: Takeoff drag at rotation
+      symbol: D_1
+    force:
+      net:
+        definitions:
+        - T_s - D_1
+        name: Net force at rotation
+        symbol: F_1
+      static:
+        definitions:
+        - T_s - mu * W
+        name: Static net force
+        symbol: F_s
+    friction:
+      maximum: 1
+      minimum: 0
+      name: Ground friction coefficient
+      symbol: mu
+    obstacle_height:
+      definitions:
+      - '35'
+      name: Obstacle height
+      symbol: h_obstacle
+    power:
+      available:
+        definitions:
+        - V_1 * T_s
+        name: Power available
+        symbol: P_A
+      required:
+        definitions:
+        - A * V_1**3 + C / V_1
+        name: Power required
+        symbol: P_R
+    velocity:
+      rotate:
+        definitions:
+        - 1.2 * V_stall
+        name: Rotation velocity
+        symbol: V_1
+  velocity:
+    climb_max:
+      definitions:
+      - ((-B + (B**2 + 4*3*A*C)**(1/2))/(2*3*A))**(1/2)
+      name: Velocity for maximum climb rate
+      symbol: V_RC_max
+    max:
+      definitions:
+      - ((-B + (B**2 - 4*A*C)**(1/2))/(2*A))**(1/2)
+      name: Maximum velocity
+      symbol: V_max
+    stall:
+      definitions:
+      - (2 * W / (rho * S_ * C_Lmax)**(1/2))
+      name: Stall velocity
+      symbol: V_stall
