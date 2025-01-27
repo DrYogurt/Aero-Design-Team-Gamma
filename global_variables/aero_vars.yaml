@@ -197,7 +197,7 @@ performance:
         symbol: S_2
       ground:
         definitions:
-        - W/(2*g) * (V_1**2)/(F_s - F_1) * log(F_s/F_1)
+        - W_max/(2*g) * (V_1**2)/(F_s - F_1) * log(F_s/F_1)
         name: Ground roll distance
         symbol: S_1
       total:
