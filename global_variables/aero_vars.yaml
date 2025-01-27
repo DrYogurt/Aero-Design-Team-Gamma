@@ -35,14 +35,10 @@ aero:
         minimum: 0
         name: Velocity
         symbol: V
-      weight:
-        minimum: 0
-        name: Weight
-        symbol: W
     lift:
       basic:
         definitions:
-        - 2 * W / (rho * V**2 * S_)
+        - 2 * W_max / (rho * V**2 * S_)
         name: Lift coefficient
         symbol: C_L
       max:
@@ -157,7 +153,7 @@ performance:
   climb:
     max_rate:
       definitions:
-      - (A * V_RC_max**3 + B * V_RC_max + C/V_RC_max) / (-W)
+      - (A * V_RC_max**3 + B * V_RC_max + C/V_RC_max) / (-W_max)
       name: Maximum rate of climb
       symbol: RC_max
   coefficients:
@@ -173,7 +169,7 @@ performance:
       symbol: B
     C:
       definitions:
-      - 2 * W**2 / (rho * S_ * e * AR * pi)
+      - 2 * W_max**2 / (rho * S_ * e * AR * pi)
       name: Coefficient C
       symbol: C
   range:
@@ -190,7 +186,7 @@ performance:
   takeoff:
     climb_rate:
       definitions:
-      - (P_A - P_R) / W
+      - (P_A - P_R) / W_max
       name: Climb rate
       symbol: RC
     distance:
@@ -222,7 +218,7 @@ performance:
         symbol: F_1
       static:
         definitions:
-        - T_s - mu * W
+        - T_s - mu * W_max
         name: Static net force
         symbol: F_s
     friction:
@@ -265,6 +261,6 @@ performance:
       symbol: V_max
     stall:
       definitions:
-      - (2 * W / (rho * S_ * C_Lmax)**(1/2))
+      - (2 * W_max / (rho * S_ * C_Lmax)**(1/2))
       name: Stall velocity
       symbol: V_stall
