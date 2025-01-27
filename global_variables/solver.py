@@ -1,5 +1,6 @@
 from typing import Dict, List, Set, Tuple, Callable
 import networkx as nx
+import sympy
 from sympy import solve, symbols, lambdify, parse_expr
 import re
 from ambiance import Atmosphere
@@ -54,46 +55,76 @@ class EquationSystem:
             if var_obj.definitions:
                 equations[var] = var_obj.definitions
         return equations
-    
+
     def create_solver(self) -> Dict[str, callable]:
+        """
+        Creates a solver that handles intermediate values by solving equations in topological order.
+        """
         # Create sympy symbols for all variables
         syms = {
             name: symbols(name.replace('{', '').replace('}', '')) 
             for name in self.inputs | self.intermediates | self.targets
         }
-        
-        # Create equations list
-        eqns = []
-        for var, def_list in self.equations.items():
+    
+        # Get topological sort of variables to solve in correct order
+        sorted_vars = list(nx.topological_sort(self.graph.graph))
+        # Filter to only keep variables we need to solve
+        sorted_vars = [v for v in sorted_vars if v in (self.intermediates | self.targets)]
+    
+        # Store intermediate solutions
+        solutions = {}
+    
+        # Solve equations in order
+        for var in sorted_vars:
             var_obj = self.registry._symbol_map[var][1]
             lhs = syms[var]
             
             if var_obj.function:
                 # Handle function-based variable
                 args_str = ", ".join(var_obj.function_args)
-                rhs = eval(f"lambda {args_str}: {var_obj.function_str}")
-            else:
-                # Handle equation-based variable
-                for def_eq in def_list:
-                    try:
-                        rhs = parse_expr(def_eq)
-                        eqns.append(lhs - rhs)
-                    except Exception as e:
-                        raise ValueError(f"Failed to parse equation '{def_eq}': {str(e)}")
+                solutions[var] = eval(f"lambda {args_str}: {var_obj.function_str}")
+                continue
+            
+            # Get equations for this variable
+            equations = self.equations.get(var, [])
+            if not equations:
+                continue
+            
+            # Try each equation definition until one works
+            solved = False
+            for eq in equations:
+                try:
+                    # Substitute any known solutions
+                    eq_expr = parse_expr(eq)
+                    for solved_var, solution in solutions.items():
+                        if isinstance(solution, sympy.Expr):
+                            eq_expr = eq_expr.subs(syms[solved_var], solution)
+                
+                    # Try to solve for current variable
+                    solution = solve(lhs - eq_expr, lhs)
+                    if solution:
+                        solutions[var] = solution[0]  # Take first solution
+                        solved = True
+                        break
+                except Exception as e:
+                    continue
+                    
+            if not solved:
+                raise ValueError(f"Could not solve for variable {var}")
         
-        # Solve system
-        solution = solve(eqns, [syms[t] for t in self.targets])
-         
-        # Create lambda functions
+        # Create lambda functions for target variables
         solvers = {}
         input_syms = [syms[v] for v in sorted(self.inputs)]
         function_namespace = {'Atmosphere': Atmosphere}
         
-        for target, expr in zip(self.targets, solution):
+        for target in self.targets:
+            if target not in solutions:
+                raise ValueError(f"No solution found for target {target}")
             solvers[target] = lambdify(
                 input_syms,
-                expr,
-                [function_namespace, "numpy"]
+                solutions[target],
+                modules=[function_namespace, "numpy"]
             )
-        
-        return solvers, solution
+    
+        return solvers, solutions
+
