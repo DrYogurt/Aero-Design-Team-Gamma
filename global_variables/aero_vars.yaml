@@ -68,7 +68,8 @@ aircraft:
         name: Available thrust
         symbol: T_A0
       static:
-        minimum: 0
+        definitions:
+        - T_A0
         name: Static thrust
         symbol: T_s
   weights:
