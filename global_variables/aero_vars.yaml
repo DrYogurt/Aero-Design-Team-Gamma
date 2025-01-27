@@ -176,14 +176,14 @@ performance:
   range:
     cruise:
       definitions:
-      - (2/TSFC) * (2/(rho*S_)**(1/2)) * CL_CD_ratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
+      - (2/TSFC) * (2/(rho*S_)**(1/2)) * CL_CDratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
       name: Cruise range
       symbol: R
     lift_drag_ratio:
       definitions:
       - 0.5 * ((C_L_full)**(1/2)/C_D_full + (C_L_empty)**(1/2)/C_D_empty)
       name: Average lift-to-drag ratio
-      symbol: CL_CD_ratio
+      symbol: CL_CDratio
   takeoff:
     climb_rate:
       definitions:
