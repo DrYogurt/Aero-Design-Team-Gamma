@@ -83,7 +83,7 @@ class EquationSystem:
         
         # Solve system
         solution = solve(eqns, [syms[t] for t in self.targets])
-        
+         
         # Create lambda functions
         solvers = {}
         input_syms = [syms[v] for v in sorted(self.inputs)]
@@ -96,4 +96,4 @@ class EquationSystem:
                 [function_namespace, "numpy"]
             )
         
-        return solvers
+        return solvers, solution
