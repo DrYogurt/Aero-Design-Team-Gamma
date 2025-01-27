@@ -22,18 +22,22 @@ date: January 28, 2025
  
 ## Mission Diagram
 - We updated the 2D mission diagram with an animation of the aircraft following the flight path and increased readability of the diagram
+- We worked on a 3D mission diagram to demonstrate the scale of the required range
 
 ## Requirements
 - We began deriving requirements based on the results of the trades studies we performed
 
 ## Product Breakdown Structure
-- Updated PDS to reflect new derived requirements from trade studies
+- We updated PDS to reflect new derived requirements from trade studies and increase readability
 
 ## Additional Work
-Cabin and seat configurations have had preliminary research done
+- Cabin and seat configurations have had preliminary research done
+- Optimizer code was worked on to aid our trade studies
 
 # Next Week's Objectives
 
 ## Continued Requirement Derivation
-Next week, we aim to continue deriving more requirements in preperation for the SSR 
+Next week, we aim to prepare for the SSR by:
+- Solidifying inputs to trade study spreadsheet
+- Deriving more requirements that pertain to the design of aircraft
 
