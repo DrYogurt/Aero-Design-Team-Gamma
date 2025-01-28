@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Tuple, Callable
+from typing import Dict, List, Set, Tuple 
 import networkx as nx
 import sympy
 from sympy import solve, symbols, lambdify, parse_expr
@@ -103,10 +103,12 @@ class EquationSystem:
                     # Try to solve for current variable
                     solution = solve(lhs - eq_expr, lhs)
                     if solution:
-                        solutions[var] = solution[0]  # Take first solution
+                        solutions[var] = solution[0].simplify()  # Take first solution
+                        # print(f"Solution for {var} found:\n{solution}")
                         solved = True
                         break
                 except Exception as e:
+                    print(f"Exception {e} occured while trying to solve variable {var}")
                     continue
                     
             if not solved:

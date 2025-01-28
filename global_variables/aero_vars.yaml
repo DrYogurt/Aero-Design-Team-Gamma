@@ -176,7 +176,7 @@ performance:
   range:
     cruise:
       definitions:
-      - (2/TSFC) * (2/(rho*S_)**(1/2)) * CL_CDratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
+      - (2/TSFC) * (2/(rho*S_))**(1/2) * CL_CDratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
       name: Cruise range
       symbol: R
     lift_drag_ratio:
@@ -240,7 +240,7 @@ performance:
         symbol: P_A
       required:
         definitions:
-        - A * V_1**3 + C / V_1
+        - A * V_1**3 + C * V_1 **(-1)
         name: Power required
         symbol: P_R
     velocity:
@@ -262,6 +262,6 @@ performance:
       symbol: V_max
     stall:
       definitions:
-      - (2 * W_max / (rho * S_ * C_Lmax)**(1/2))
+      - (2 * W_max / (rho * S_ * C_Lmax))**(1/2)
       name: Stall velocity
       symbol: V_stall
