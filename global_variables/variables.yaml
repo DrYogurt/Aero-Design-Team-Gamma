@@ -1,9 +1,0 @@
-aerodynamics:
-  lift_coefficient: 1.5
-  drag_coefficient: 0.028
-propulsion:
-  thrust: 15000
-  specific_fuel_consumption: 16.2
-performance:
-  range: 2500
-  ceiling: 12000
