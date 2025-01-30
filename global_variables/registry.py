@@ -5,7 +5,6 @@ from typing import Dict, Optional, List, Union, Callable, Set
 import warnings
 import sympy
 
-
 class Variable:
     def __init__(
         self,
@@ -16,7 +15,9 @@ class Variable:
         maximum: Optional[float] = None,
         definitions: Optional[List[str]] = None,
         function_str: Optional[str] = None,
-        function_args: Optional[List[str]] = None
+        function_args: Optional[List[str]] = None,
+        assumed_value: Optional[float] = None,
+        real_value: Optional[float] = None
     ):
         self.name = name
         self.symbol = symbol
@@ -26,13 +27,11 @@ class Variable:
         self.definitions = definitions or []
         self.function_str = function_str
         self.function_args = function_args or []
+        self.assumed_value = assumed_value
+        self.real_value = real_value
         self._function = None
         if function_str:
             self._function = eval(function_str)
-
-    @property
-    def function(self):
-        return self._function
 
     def to_dict(self) -> Dict:
         data = {
@@ -50,6 +49,10 @@ class Variable:
         if self.function_str:
             data['function_str'] = self.function_str
             data['function_args'] = self.function_args
+        if self.assumed_value is not None:
+            data['assumed_value'] = self.assumed_value
+        if self.real_value is not None:
+            data['real_value'] = self.real_value
         return data
 
     @classmethod
@@ -62,21 +65,10 @@ class Variable:
             maximum=data.get('maximum'),
             definitions=data.get('definitions'),
             function_str=data.get('function_str'),
-            function_args=data.get('function_args')
+            function_args=data.get('function_args'),
+            assumed_value=data.get('assumed_value'),
+            real_value=data.get('real_value')
         )
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> 'Variable':
-        return cls(
-            name=data['name'],
-            symbol=data['symbol'],
-            description=data.get('description'),
-            minimum=data.get('minimum'),
-            maximum=data.get('maximum'),
-            definitions=data.get('definitions'),
-            function_args=data.get('function_args')
-        )
-
 class RegistryNode:
     def __init__(self, parent=None, name=None):
         self._children = {}
@@ -201,4 +193,26 @@ class VariableRegistry(RegistryNode):
     @property
     def symbols(self) -> Dict[str, Variable]:
         return {symbol: var for symbol, (_, var) in self._symbol_map.items()}
-
+    
+    def update_registry_definitions(self, new_definitions: Dict[str, Set[str]], save: bool = True):
+        """
+            Updates the registry with new definitions and optionally saves it.
+        
+        Args:
+                new_definitions: Dict mapping variable symbols to new definitions to add
+            save: Whether to save the registry after updating
+        """
+        # Update registry with new definitions
+        for symbol, definitions in new_definitions.items():
+            var_path, var_obj = self.registry._symbol_map[symbol]
+            # Convert to list and remove duplicates while preserving order
+            existing_defs = list(dict.fromkeys(var_obj.definitions))
+            new_defs = list(dict.fromkeys(definitions))
+            var_obj.definitions = existing_defs + [d for d in new_defs if d not in existing_defs]
+        
+        # Save registry if requested
+        if save:
+            self.registry._save_registry()
+            
+        # Update equations dict with new definitions
+        self.equations = self._collect_equations()

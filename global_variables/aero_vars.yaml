@@ -48,12 +48,12 @@ aero:
         symbol: C_Lmax
     lift_empty:
       definitions:
-      - 2 * (W_max - W_f) / (rho * V**2 * S_)
+      - 2 * (W_max - W_f) / (rho_h * V**2 * S_)
       name: Lift coefficient at empty weight
       symbol: C_L_empty
     lift_full:
       definitions:
-      - 2 * W_max / (rho * V**2 * S_)
+      - 2 * W_max / (rho_h * V**2 * S_)
       name: Lift coefficient at max weight
       symbol: C_L_full
 aircraft:
@@ -126,22 +126,16 @@ aircraft:
       name: Wing span
       symbol: b
 atmosphere:
-  density:
-    function_args:
-    - h
-    function_str: 'lambda h: Atmosphere(h).density'
-    name: Air density
+  density_0:
+    name: Air density at sea level
     symbol: rho
+  density_h:
+    name: Air density at cruise
+    symbol: rho_h
   pressure:
-    function_args:
-    - h
-    function_str: 'lambda h: Atmosphere(h).pressure'
     name: Air pressure
     symbol: P
   temperature:
-    function_args:
-    - h
-    function_str: 'lambda h: Atmosphere(h).temperature'
     name: Air temperature
     symbol: T
 performance:
@@ -176,7 +170,7 @@ performance:
   range:
     cruise:
       definitions:
-      - (2/TSFC) * (2/(rho*S_))**(1/2) * CL_CDratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
+      - (2/TSFC) * (2/(rho_h*S_))**(1/2) * CL_CDratio * ((W_max)**(1/2)-(W_max-W_f)**(1/2))
       name: Cruise range
       symbol: R
     lift_drag_ratio:
