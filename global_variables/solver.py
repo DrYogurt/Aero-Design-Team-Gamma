@@ -57,73 +57,78 @@ class EquationSystem:
                 equations[var] = var_obj.definitions
         return equations
 
-    def create_solver(self) -> Dict[str, callable]:
-        """
-        Creates a solver that handles intermediate values by solving equations in topological order.
-        """
-        # Create sympy symbols for all variables
+    def create_solver(self, solve_for: Optional[str] = None) -> Dict[str, callable]:
+        """Creates a solver that handles intermediate values by solving equations in topological order."""
         syms = {
             name: symbols(name.replace('{', '').replace('}', '')) 
             for name in self.inputs | self.intermediates | self.targets
         }
     
-        # Get topological sort of variables to solve in correct order
         sorted_vars = list(nx.topological_sort(self.graph.graph))
-        # Filter to only keep variables we need to solve
         sorted_vars = [v for v in sorted_vars if v in (self.intermediates | self.targets)]
-    
-        # Store intermediate solutions
         solutions = {}
-    
-        # Solve equations in order
+        
         for var in sorted_vars:
+            #print(f"solving for {var}")
             var_obj = self.registry._symbol_map[var][1]
             lhs = syms[var]
             
             if var_obj._function:
-                # Handle function-based variable
                 args_str = ", ".join(var_obj._function_args)
                 solutions[var] = eval(f"lambda {args_str}: {var_obj.function_str}")
                 continue
-            
-            # Get equations for this variable
+                
             equations = self.equations.get(var, [])
             if not equations:
                 continue
-            
-            # Try each equation definition until one works
-            solved = False
+                
             for eq in equations:
+                #print(f"attempting equation {eq}")
+
                 try:
-                    # Substitute any known solutions
                     eq_expr = parse_expr(eq)
                     for solved_var, solution in solutions.items():
                         if isinstance(solution, sympy.Expr):
                             eq_expr = eq_expr.subs(syms[solved_var], solution)
-                
-                    # Try to solve for current variable
-                    solution = solve(lhs - eq_expr, lhs)
-                    if solution:
-                        solutions[var] = solution[0].simplify()  # Take first solution
-                        # print(f"Solution for {var} found:\n{solution}")
-                        solved = True
+                    
+                    result = solve(lhs - eq_expr, lhs)
+                    if result:
+                        solutions[var] = result[0].simplify()
+                        #print(f"found solution for {var}: {solutions[var]}")
+
                         break
                 except Exception as e:
-                    print(f"Exception {e} occured while trying to solve variable {var}")
                     continue
-                    
-            if not solved:
-                raise ValueError(f"Could not solve for variable {var}")
-        
-        # Create lambda functions for target variables
+    
+        # If solving for specific variable and it appears in the R equation
+        if solve_for:
+            target_var = next(iter(self.targets))  # Should be R
+            if target_var in solutions:
+                target_expr = solutions[target_var]
+                solve_sym = syms[solve_for]
+                if str(solve_sym) in str(target_expr):
+                    # Solve R equation for specified variable
+                    result = solve(syms[target_var] - target_expr, solve_sym)
+                    if result:
+                        solutions[solve_for] = result[0].simplify()
+                        target_vars = {solve_for}
+                    else:
+                        target_vars = self.targets
+                else:
+                    target_vars = self.targets
+            else:
+                target_vars = self.targets
+        else:
+            target_vars = self.targets
+    
+        # Create solvers
         solvers = {}
         input_syms = [syms[v] for v in sorted(self.inputs)]
         function_namespace = {'Atmosphere': Atmosphere}
         
-        for target in self.targets:
+        for target in target_vars:
             if target not in solutions:
-                warnings.warn(f"No solution found for target {target}, treating as input")
-                solvers[target] = lambda x: x  #treating as identity
+                solvers[target] = lambda x: x
             else:
                 solvers[target] = lambdify(
                     input_syms,
@@ -131,9 +136,9 @@ class EquationSystem:
                     modules=[function_namespace, "numpy"]
                 )
     
-        return solvers#, solutions
-
-
+        return solvers
+    
+    
     def complete_definitions(self, variables: Set[str]) -> Dict[str, Set[str]]:
         """
         For given variables:
