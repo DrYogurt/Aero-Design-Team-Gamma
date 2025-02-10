@@ -1,10 +1,15 @@
+#####
+# Implemented following the work done by McFarland and Agarwal:
+# https://openscholarship.wustl.edu/cgi/viewcontent.cgi?article=1182&context=mems500
+#####
+
 import numpy as np
 from scipy.optimize import minimize
 from dataclasses import dataclass
 from typing import Dict, Tuple, Callable
 
 @dataclass
-class FluidProperties:
+class FluidProperies:
     density: float  # kg/m3
     dynamic_viscosity: float  # kg/s*m
     heat_capacity: float  # J/kg*K
