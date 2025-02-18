@@ -235,7 +235,7 @@ performance:
       required:
         definitions:
         - A * V_1**3 + C * V_1 **(-1)
-        name: Power required
+        name: Power required at sea level
         symbol: P_R
     velocity:
       rotate:
