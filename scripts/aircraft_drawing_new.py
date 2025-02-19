@@ -138,6 +138,11 @@ class AircraftPlotter:
             'AR': self._calculate_aspect_ratio(),
             'volume': self._calculate_wing_volume(),
         })
+
+        self.wing.update({
+            'e_oswald': self._calculate_oswald_factor(),
+        })
+        self.CD_0 = self._calculate_parastic_drag()
         
         self.engines = engines or []
 
@@ -214,6 +219,48 @@ class AircraftPlotter:
         return np.array(points)
 
 
+    def _calculate_oswald_factor(self):
+        # see Raymer pg 299
+        AR = self.wing['AR']
+        LE = self.wing['sweep']
+        if LE < np.pi / 4: # TODO: fix?
+            e = 1.78*(1-0.045*AR**.68)-0.64
+        else:
+            e = 4.61*(1-0.045*AR**0.68)*(np.cos(LE))**0.15-3.1
+        return e
+
+    def _calculate_parastic_drag(self):
+        # TODO: calculate exposed area
+        exposed_wing_area = self.wing['area']
+
+        # calculated wetted wing area
+        if self.wing['thickness'] > 0.05:
+            wing_wet = exposed_wing_area * (1.977 + 0.52 * self.wing['thickness'])
+        else:
+            wing_wet = exposed_wing_area * 2.003
+
+        # calculated wetted fuselage area
+        total_length = self.fuselage['length'] + self.cockpit['length'] + self.vtail['chord_data'][0][1]
+        mean_diameter = (self.fuselage['height'] + self.fuselage['width']) / 2
+        fuselage_area = np.pi * mean_diameter**2 / 4 * total_length
+
+        # TODO: fix assumptions for R and M
+        k = 2.08e-5
+        l_wing = self.wing['chord_data'][0][1] # TODO: fix with cbar
+        R_turbulent_wing = R_cutoff = 38.21*(l_wing/k)**1.053
+        M = 0.85
+        cf_wing = .455 / np.log10(R_turbulent_wing) ** 2.58 / (1+0.144*M**2)**.65
+
+        R_turbulent_fuselage = R_cutoff = 38.21*(total_length/k)**1.053
+        M = 0.85
+        cf_fuselage = .455 / np.log10(R_turbulent_fuselage) ** 2.58 / (1+0.144*M**2)**.65
+        
+        CD0 = (cf_wing*wing_wet + cf_fuselage*fuselage_area) / self.wing['area']
+        return CD0
+
+
+        cf*S_wet_total / S
+    
     def to_dict(self):
         """Return all aircraft parameters as a dictionary"""
         return {
@@ -227,7 +274,8 @@ class AircraftPlotter:
             'required_rows': self.required_rows,
             'fuselage_width': self.fuselage_width,
             'total_height': self.total_height,
-            'fuselage_length': self.fuselage_length
+            'fuselage_length': self.fuselage_length,
+            'parasitic_drag':self.CD_0
         }
     
     
@@ -692,7 +740,8 @@ def main():
         wingspan=300, #f
         sweep=37.5, #deg
         wing_chord_data=[(0, 65), (30, 35), (100, 10)],
-        wing_thickness=0.12, dihedral=5,
+        wing_thickness=0.12,
+        dihedral=5,
         v_span=20, 
         v_sweep=35,
         v_chord_data=[(0, 60), (100, 40)],
