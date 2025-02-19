@@ -238,7 +238,7 @@ class AircraftPlotter:
        else:
            wing_wet = exposed_wing_area * 2.003
 
-           
+           #Ben is cool
            
 
     def to_dict(self):
