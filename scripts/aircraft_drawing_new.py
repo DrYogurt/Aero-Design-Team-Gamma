@@ -459,7 +459,6 @@ class AircraftPlotter:
         
         t_left = np.linspace(0, 1, len(left_points))
         t_right = np.linspace(0, 1, len(right_points))
-        
         left_spline = make_interp_spline(t_left, left_points, k=3)
         right_spline = make_interp_spline(t_right, right_points, k=3)
         
