@@ -568,7 +568,7 @@ def main():
             'seat_width': 32,
             'seat_depth': 2,    
             'seat_height': 11,
-            'headroom_height':0,
+            'headroom_height':3,
             'ceiling_height':11.5,
             'aisle_width': 0.5,
             'seat_distribution':[1],
@@ -581,7 +581,7 @@ def main():
             'headroom_height':1,
             'ceiling_height':7,
             'aisle_width': 2,
-            'seat_distribution':[3,6,6,3]
+            'seat_distribution':[3,6,3]
         },
         {
             'seat_width': 1.5,
@@ -590,22 +590,13 @@ def main():
             'headroom_height':1,
             'ceiling_height':7,
             'aisle_width': 2,
-            'seat_distribution':[3,6,6,3]
-        },
-        {
-            'seat_width': 2.5,
-            'seat_depth': 2.6,
-            'seat_height': 4,
-            'headroom_height':1,
-            'ceiling_height':7,
-            'aisle_width': 2,
-            'seat_distribution':[2,2,2]
+            'seat_distribution':[3,4,3]
         },
 
     ]
     galleys = [
-        {'length': 20, 'number':2, 'floor': 1},
-        {'length': 20, 'number':2, 'floor': 2}
+        {'length': 20, 'number':3, 'floor': 1},
+        {'length': 20, 'number':3, 'floor': 2}
     ]
 
     engines = [
@@ -624,7 +615,7 @@ def main():
         total_passengers=1200,
         seat_configs=seat_configs,
         galleys=galleys,
-        wingspan=311, #f
+        wingspan=315, #f
         sweep=37.5, #deg
         wing_chord_data=[(0, 65), (30, 45), (100, 15)],
         wing_thickness=0.12, dihedral=5,
