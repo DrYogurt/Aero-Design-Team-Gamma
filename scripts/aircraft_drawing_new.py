@@ -604,8 +604,8 @@ def main():
         'radius': 5,
         'length': 20,
         'positions': [
-            (-30, 30, 10),  # (x, y, height) from centerline
-            (-40, 20, 10)
+            (15, 100, 6),  # (x, y, height) from centerline
+            (-15, 60, 2)
         ]
     }
     ]
@@ -627,7 +627,7 @@ def main():
         h_chord_data=[(0, 40), (100, 10)],
         tail_configuration='low',
         wing_center_x=-50,  # Move wing forward
-        wing_center_y=18,   # Adjust wing height
+        wing_center_y=2,   # Adjust wing height
         cockpit_length=20,
         engines=engines
     )
