@@ -85,6 +85,7 @@ class AircraftPlotter:
         cargo_volume = sum(config['seat_width']*config['seat_height'] * self.fuselage_length for config in seat_configs if config.get('cargo', False))
         print(f"Total Cargo Volume: {cargo_volume:.0f} ft^3")
         assert cargo_volume >= total_passengers * cargo_per_passenger
+        
         # Set all parameters
         self.wing = {
             'span': wingspan,
@@ -131,8 +132,71 @@ class AircraftPlotter:
         'center_x': wing_center_x if wing_center_x is not None else -self.fuselage_length/4,
         'center_y': wing_center_y if wing_center_y is not None else self.total_height/2
         })
-    
+
+        self.wing.update({
+            'area': self._calculate_wing_area(),
+            'AR': self._calculate_aspect_ratio(),
+            'volume': self._calculate_wing_volume(),
+        })
+        
         self.engines = engines or []
+
+    def _calculate_wing_area(self):
+        """
+        Calculate total wing area by integrating chord distribution along span.
+        Returns area of both wings combined.
+        """
+        half_span = self.wing['span'] / 2
+        chord_data = self.wing['chord_data']
+        
+        # Convert percentage positions to actual distances
+        positions = [pos * half_span / 100 for pos, _ in chord_data]
+        chords = [chord for _, chord in chord_data]
+        
+        # Calculate area by trapezoidal integration
+        area = 0
+        for i in range(len(positions) - 1):
+            dx = positions[i+1] - positions[i]
+            avg_chord = (chords[i] + chords[i+1]) / 2
+            area += dx * avg_chord
+            
+        # Multiply by 2 for both wings
+        return 2 * area
+
+    def _calculate_wing_volume(self):
+        """
+        Calculate total wing volume by integrating chord and thickness distribution along span.
+        Returns volume of both wings combined.
+        Uses thickness ratio and assumes a typical airfoil shape factor of 0.6.
+        """
+        half_span = self.wing['span'] / 2
+        chord_data = self.wing['chord_data']
+        thickness_ratio = self.wing['thickness']
+        airfoil_shape_factor = 0.6  # Typical value for transport aircraft airfoils
+        
+        # Convert percentage positions to actual distances
+        positions = [pos * half_span / 100 for pos, _ in chord_data]
+        chords = [chord for _, chord in chord_data]
+        
+        # Calculate volume by trapezoidal integration
+        volume = 0
+        for i in range(len(positions) - 1):
+            dx = positions[i+1] - positions[i]
+            # Average chord in this section
+            avg_chord = (chords[i] + chords[i+1]) / 2
+            # Volume of wing section = length * chord * thickness * shape factor
+            section_volume = dx * avg_chord * avg_chord * thickness_ratio * airfoil_shape_factor
+            volume += section_volume
+            
+        # Multiply by 2 for both wings, but use triangular cross section
+        return volume 
+    
+    def _calculate_aspect_ratio(self):
+        """
+        Calculate wing aspect ratio: AR = (wingspan)^2 / area
+        """
+        wing_area = self._calculate_wing_area()
+        return (self.wing['span']**2) / wing_area
 
     
     def _generate_wing_points(self):
@@ -148,6 +212,7 @@ class AircraftPlotter:
             points.append((x, y, chord))
             
         return np.array(points)
+
 
     def to_dict(self):
         """Return all aircraft parameters as a dictionary"""
@@ -449,7 +514,7 @@ class AircraftPlotter:
         
         # Add points for top and bottom curves
         control_points.extend([
-            (0, y_positions[0]-floor_heights[0]/2-1e-3),
+            (0, y_positions[0]-floor_heights[0]/4-1e-3),
             (0, y_positions[-1]+1e-3),
         ])
         control_points = np.array(control_points)
@@ -516,15 +581,15 @@ class AircraftPlotter:
         ax_side.set_xlim([-max_length/2, max_length/2 + tail_length])
         
         ax_front.set_xlim([-max_width/2, max_width/2])
-        ax_front.set_ylim([0, max_height + tail_height])
+        ax_front.set_ylim([-max_height, max_height + tail_height])
         
         # Set labels
-        ax_top.set_xlabel('Length (m)')
-        ax_top.set_ylabel('Span (m)')
-        ax_side.set_xlabel('Length (m)')
-        ax_side.set_ylabel('Height (m)')
-        ax_front.set_xlabel('Span (m)')
-        ax_front.set_ylabel('Height (m)')
+        ax_top.set_xlabel('Length (ft)')
+        ax_top.set_ylabel('Span (ft)')
+        ax_side.set_xlabel('Length (ft)')
+        ax_side.set_ylabel('Height (ft)')
+        ax_front.set_xlabel('Span (ft)')
+        ax_front.set_ylabel('Height (ft)')
         
         # Set equal aspect ratio
         for ax in [ax_top, ax_side, ax_front]:
@@ -565,11 +630,11 @@ def main():
     # Add seating configuration
     seat_configs = [
         {
-            'seat_width': 32,
-            'seat_depth': 2,    
-            'seat_height': 11,
+            'seat_width': 14,
+            'seat_depth': 1,    
+            'seat_height': 8,
             'headroom_height':0,
-            'ceiling_height':11.5,
+            'ceiling_height':8,
             'aisle_width': 0.5,
             'seat_distribution':[1],
             'cargo':True
@@ -581,7 +646,7 @@ def main():
             'headroom_height':1,
             'ceiling_height':7,
             'aisle_width': 2,
-            'seat_distribution':[3,6,6,3]
+            'seat_distribution':[3,6,3]
         },
         {
             'seat_width': 1.5,
@@ -590,7 +655,7 @@ def main():
             'headroom_height':1,
             'ceiling_height':7,
             'aisle_width': 2,
-            'seat_distribution':[3,6,6,3]
+            'seat_distribution':[3,5,3]
         },
         {
             'seat_width': 2.5,
@@ -599,7 +664,7 @@ def main():
             'headroom_height':1,
             'ceiling_height':7,
             'aisle_width': 2,
-            'seat_distribution':[2,2,2]
+            'seat_distribution':[1,2,1]
         },
 
     ]
@@ -613,20 +678,20 @@ def main():
         'radius': 5,
         'length': 20,
         'positions': [
-            (-30, 30, 10),  # (x, y, height) from centerline
-            (-40, 20, 10)
+            (-20, 50, 0),  # (x, y, height) from centerline
+            (15, 100, 5)
         ]
     }
     ]
 
     
     plotter = AircraftPlotter(
-        total_passengers=1200,
+        total_passengers=1250,
         seat_configs=seat_configs,
         galleys=galleys,
-        wingspan=311, #f
+        wingspan=300, #f
         sweep=37.5, #deg
-        wing_chord_data=[(0, 65), (30, 45), (100, 15)],
+        wing_chord_data=[(0, 65), (30, 35), (100, 10)],
         wing_thickness=0.12, dihedral=5,
         v_span=20, 
         v_sweep=35,
@@ -636,7 +701,7 @@ def main():
         h_chord_data=[(0, 40), (100, 10)],
         tail_configuration='low',
         wing_center_x=-50,  # Move wing forward
-        wing_center_y=18,   # Adjust wing height
+        wing_center_y=2,   # Adjust wing height
         cockpit_length=20,
         engines=engines
     )
@@ -687,3 +752,4 @@ if __name__ == "__main__":
     # C_L correlation:
         # Find c_bar
         # find wetted area 
+    # raymer 48,52,57,63
