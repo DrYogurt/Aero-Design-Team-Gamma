@@ -138,6 +138,10 @@ class AircraftPlotter:
             'AR': self._calculate_aspect_ratio(),
             'volume': self._calculate_wing_volume(),
         })
+
+        self.wing.update({
+            'e_oswald': self._calculate_oswald_factor()
+        })
         
         self.engines = engines or []
 
@@ -212,7 +216,30 @@ class AircraftPlotter:
             points.append((x, y, chord))
             
         return np.array(points)
+    
 
+    def _calculate_oswald_factor(self):
+        # See Raymer p. 299
+        AR = self.wing['AR']
+        LE = self.wing['sweep']
+        if LE >= np.pi / 4: #TODO: fix?
+            e = 1.78*(1-0.045*AR**0.68)-0.64
+        else:
+            e = 4.61*(1-0.045*AR**0.68)*((np.cos(LE))**0.15)-3.1
+        return e
+    
+    def _calculate_parasitic_drag(self):
+       #TODO: calculate exposed wing area
+       exposed_wing_area = self.wing['area']
+
+       #calculate wetted wing area
+       if self.wing['wing_thickness'] > 0.05:
+           wing_wet = exposed_wing_area * (1.977 + 0.52 *self.wing['wing_thickness'])
+       else:
+           wing_wet = exposed_wing_area * 2.003
+
+           
+           
 
     def to_dict(self):
         """Return all aircraft parameters as a dictionary"""
