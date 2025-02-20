@@ -6,7 +6,8 @@ description = "Aerospace Design Analysis"
 authors = ["Ben Rubinstein <bzr4@case.edu>"]
 packages = [
     { include = "global_variables" },
-    { include = "analysis" }
+    { include = "analysis" },
+    {include = "aircraft_design"}
 ]
 
 
