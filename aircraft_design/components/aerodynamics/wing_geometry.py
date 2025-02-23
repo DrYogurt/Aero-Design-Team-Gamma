@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from aircraft_design.core.base import Geometry
 from aircraft_design.core.plotting import Object3D, Shape3D, create_wing_section, plot_3d_shape
 
-@dataclass
 class AerodynamicGeometry(Geometry):
     """Basic geometry for aerodynamic surfaces"""
     def __init__(self):
@@ -108,30 +107,32 @@ class WaypointChord:
 
 class WaypointWingGeometry(AerodynamicGeometry):
     """Wing geometry with constant leading edge defined by waypoints along the span"""
-    def __init__(self):
+    def __init__(self, waypoints: Optional[List[Dict[str, float]]] = None):
         super().__init__()
         self.waypoints: List[WaypointChord] = []
         # Leading edge sweep is fixed, trailing edge is determined by waypoints
         self.parameters.update({
             'le_sweep': 0.0,  # Leading edge sweep angle in degrees
         })
-
-    def update_parameters(self, params: Dict[str, float]) -> None:
-        """Update parameters and regenerate waypoints if needed"""
-        # Store old values for comparison
-        old_root = self.parameters.get('root_chord', 0.0)
-        old_tip = self.parameters.get('tip_chord', 0.0)
         
+        # Initialize with provided waypoints
+        if waypoints:
+            for wp in waypoints:
+                self.add_waypoint(wp['span_fraction'], wp['chord'], wp['thickness'])
+
+    def update_parameters(self, params: Dict[str, Any]) -> None:
+        """Update parameters and regenerate waypoints if needed"""
         # Update parameters
         self.parameters.update(params)
+
+
         
-        # If root or tip chord changed and we don't have custom waypoints, regenerate default waypoints
-        if ((old_root != self.parameters['root_chord'] or old_tip != self.parameters['tip_chord']) and 
-            len(self.waypoints) <= 2):
+        
+        # If waypoints are provided, clear existing and add new waypoints
+        if 'waypoints' in params:
             self.waypoints = []  # Clear existing waypoints
-            if self.parameters['root_chord'] > 0 and self.parameters['tip_chord'] > 0:
-                self.add_waypoint(0.0, self.parameters['root_chord'], self.parameters['root_chord'] * 0.12)
-                self.add_waypoint(1.0, self.parameters['tip_chord'], self.parameters['tip_chord'] * 0.10)
+            for wp in params['waypoints']:
+                self.add_waypoint(wp['span_fraction'], wp['chord'], wp['thickness'])
 
     def add_waypoint(self, span_fraction: float, chord: float, thickness: float) -> None:
         """Add a new waypoint at a specified span fraction"""
@@ -238,9 +239,11 @@ class WaypointWingGeometry(AerodynamicGeometry):
             y1 = wp1.span_location * half_span
             y2 = wp2.span_location * half_span
             
+            # Calculate x positions based on leading edge sweep
             x1 = y1 * np.tan(sweep_rad)
             x2 = y2 * np.tan(sweep_rad)
             
+            # Calculate z positions based on dihedral
             z1 = y1 * np.tan(dihedral_rad)
             z2 = y2 * np.tan(dihedral_rad)
             
@@ -383,96 +386,24 @@ class TailGeometry(AerodynamicGeometry):
             # For horizontal tail, use span
             super().plot(ax, color, alpha)
 
-    def plot_top_view(self, ax: plt.Axes, color: str = 'blue') -> None:
-        """Plot top view (X-Y plane)"""
-        if 'height' in self.parameters:  # Vertical tail
-            height = self.parameters['height']
-            sweep_rad = np.radians(self.parameters['sweep'])
-            
-            # Plot root chord
-            root_x = [self.position.x, self.position.x + self.parameters['root_chord']]
-            root_y = [self.position.y, self.position.y]
-            ax.plot(root_x, root_y, color=color)
-            
-            # Plot tip chord
-            tip_x = self.position.x + height * np.tan(sweep_rad)
-            tip_chord_x = [tip_x, tip_x + self.parameters['tip_chord']]
-            tip_y = [self.position.y, self.position.y]
-            ax.plot(tip_chord_x, tip_y, color=color)
-            
-            # Plot leading and trailing edges
-            ax.plot([root_x[0], tip_x], [root_y[0], tip_y[0]], color=color)
-            ax.plot([root_x[1], tip_chord_x[1]], [root_y[1], tip_y[1]], color=color)
-        else:  # Horizontal tail
-            half_span = self.parameters['span'] / 2
-            sweep_rad = np.radians(self.parameters['sweep'])
-            
-            # Calculate tip positions
-            tip_x = self.position.x + half_span * np.tan(sweep_rad)
-            
-            # Plot root chord
-            root_x = [self.position.x, self.position.x + self.parameters['root_chord']]
-            root_y = [0, 0]
-            ax.plot(root_x, root_y, color=color)
-            
-            # Plot tip chords
-            for side in [-1, 1]:
-                tip_y = side * half_span
-                tip_chord_x = [tip_x, tip_x + self.parameters['tip_chord']]
-                ax.plot(tip_chord_x, [tip_y, tip_y], color=color)
-                
-                # Plot leading and trailing edges
-                ax.plot([root_x[0], tip_x], [0, tip_y], color=color)
-                ax.plot([root_x[1], tip_chord_x[1]], [0, tip_y], color=color)
-
-    def plot_side_view(self, ax: plt.Axes, color: str = 'blue') -> None:
-        """Plot side view (X-Z plane)"""
-        if 'height' in self.parameters:  # Vertical tail
-            height = self.parameters['height']
-            sweep_rad = np.radians(self.parameters['sweep'])
-            cant_rad = np.radians(self.parameters.get('cant_angle', 0.0))
-            
-            # Calculate tip position
-            tip_x = self.position.x + height * np.tan(sweep_rad)
-            tip_z = self.position.z + height * np.cos(cant_rad)
-            
-            # Plot root chord
-            root_x = [self.position.x, self.position.x + self.parameters['root_chord']]
-            root_z = [self.position.z, self.position.z]
-            ax.plot(root_x, root_z, color=color)
-            
-            # Plot tip chord
-            tip_chord_x = [tip_x, tip_x + self.parameters['tip_chord']]
-            ax.plot(tip_chord_x, [tip_z, tip_z], color=color)
-            
-            # Plot leading and trailing edges
-            ax.plot([root_x[0], tip_x], [root_z[0], tip_z], color=color)
-            ax.plot([root_x[1], tip_chord_x[1]], [root_z[1], tip_z], color=color)
-        else:  # Horizontal tail
-            sweep_rad = np.radians(self.parameters['sweep'])
-            
-            # Plot root chord
-            root_x = [self.position.x, self.position.x + self.parameters['root_chord']]
-            ax.plot(root_x, [self.position.z, self.position.z], color=color)
-
-    def plot_front_view(self, ax: plt.Axes, color: str = 'blue') -> None:
-        """Plot front view (Y-Z plane)"""
-        if 'height' in self.parameters:  # Vertical tail
-            height = self.parameters['height']
-            cant_rad = np.radians(self.parameters.get('cant_angle', 0.0))
-            
-            # Plot vertical line
-            ax.plot([0, 0], [self.position.z, self.position.z + height], color=color)
-        else:  # Horizontal tail
-            half_span = self.parameters['span'] / 2
-            
-            # Plot horizontal line
-            ax.plot([-half_span, half_span], [self.position.z, self.position.z], color=color)
+class SimpleSweptWing(WaypointWingGeometry):
+    """Simple swept wing with only root and tip chord"""
+    def __init__(self, root_chord: float, tip_chord: float, span: float, sweep: float = 0.0, dihedral: float = 0.0):
+        waypoints = [
+            {'span_fraction': 0.0, 'chord': root_chord, 'thickness': root_chord * 0.12},
+            {'span_fraction': 1.0, 'chord': tip_chord, 'thickness': tip_chord * 0.10}
+        ]
+        super().__init__(waypoints)
+        self.parameters.update({
+            'span': span,
+            'sweep': sweep,
+            'dihedral': dihedral
+        })
 
 # Example usage
 if __name__ == "__main__":
     
-    from basic_aero import AerodynamicComponent
+
         
     # Create a multi-section wing
     wing_geom = WaypointWingGeometry()

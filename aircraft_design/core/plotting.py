@@ -24,10 +24,10 @@ class Object3D:
     
     def apply_position(self, position: np.ndarray) -> None:
         """Apply a position offset to all shapes"""
-        print(f"Applying position offset: {position}")
+        # print(f"Applying position offset: {position}")
         for shape in self.shapes:
             shape.vertices = shape.vertices + position
-            print(f"  Shape vertices range: {np.min(shape.vertices, axis=0)} to {np.max(shape.vertices, axis=0)}")
+            # print(f"  Shape vertices range: {np.min(shape.vertices, axis=0)} to {np.max(shape.vertices, axis=0)}")
             
     def get_bounds(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get the min and max bounds of the object"""
@@ -108,42 +108,63 @@ def create_ellipsoid(a: float, b: float, c: float, num_points: int = 32) -> Shap
 
 def create_wing_section(root_pos: np.ndarray, tip_pos: np.ndarray, 
                        root_chord: float, tip_chord: float,
-                       thickness_ratio: float = 0.12) -> Shape3D:
+                       thickness_ratio: float = 0.12,
+                       num_points: int = 20) -> Shape3D:
     """Create vertices and faces for a wing section"""
     # Create airfoil shape (simplified)
     def airfoil_points(chord: float, num_points: int = 20) -> np.ndarray:
-        x = np.linspace(0, chord, num_points)
+        # Create points for upper and lower surface
+        x = np.concatenate([
+            np.linspace(0, chord, num_points//2),  # Upper surface
+            np.linspace(chord, 0, num_points//2)   # Lower surface
+        ])
+        
         # Simple symmetric airfoil shape
         y = np.zeros_like(x)
-        z = thickness_ratio * chord * (0.2969*np.sqrt(x/chord) - 
-                                     0.1260*(x/chord) - 
-                                     0.3516*(x/chord)**2 + 
-                                     0.2843*(x/chord)**3 - 
-                                     0.1015*(x/chord)**4)
+        
+        # Calculate z coordinates (thickness distribution)
+        # Upper surface
+        z_upper = thickness_ratio * chord * (0.2969*np.sqrt(x[:num_points//2]/chord) - 
+                                   0.1260*(x[:num_points//2]/chord) - 
+                                   0.3516*(x[:num_points//2]/chord)**2 + 
+                                   0.2843*(x[:num_points//2]/chord)**3 - 
+                                   0.1015*(x[:num_points//2]/chord)**4)
+        
+        # Lower surface (negative of upper)
+        z_lower = -thickness_ratio * chord * (0.2969*np.sqrt(x[num_points//2:]/chord) - 
+                                   0.1260*(x[num_points//2:]/chord) - 
+                                   0.3516*(x[num_points//2:]/chord)**2 + 
+                                   0.2843*(x[num_points//2:]/chord)**3 - 
+                                   0.1015*(x[num_points//2:]/chord)**4)
+        
+        z = np.concatenate([z_upper, z_lower])
         return np.column_stack([x, y, z])
 
     # Create root and tip airfoil points
-    root_points = airfoil_points(root_chord)
-    tip_points = airfoil_points(tip_chord)
+    root_points = airfoil_points(root_chord, num_points)
+    tip_points = airfoil_points(tip_chord, num_points)
     
     # Transform tip points to tip position
     direction = tip_pos - root_pos
     tip_points = tip_points + tip_pos
+    root_points = root_points + root_pos
     
-    # Create vertices
-    vertices = []
-    vertices.extend(root_points)
-    vertices.extend(tip_points)
+    # Create vertices by combining root and tip points
+    vertices = np.vstack([root_points, tip_points])
     
     # Create faces
     faces = []
-    num_points = len(root_points)
+    n = num_points
     
-    # Connect root and tip points to create faces
-    for i in range(num_points-1):
-        faces.append([i, i+1, i+1+num_points, i+num_points])
+    # Create faces connecting root and tip
+    for i in range(n-1):
+        # Connect current point to next point on both root and tip
+        faces.append([i, i+1, i+1+n, i+n])
     
-    return Shape3D(vertices=np.array(vertices), faces=faces)
+    # Connect last point back to first to close the section
+    faces.append([n-1, 0, n, 2*n-1])
+    
+    return Shape3D(vertices=vertices, faces=faces)
 
 def plot_3d_shape(ax: Axes3D, shape: Shape3D, color: str = 'blue', alpha: float = 0.5) -> None:
     """Plot a 3D shape on the given axes"""
@@ -175,8 +196,11 @@ def plot_orthographic_views(obj: Object3D, figsize: Tuple[int, int] = (15, 10)) 
     if np.any(obj.position != 0):
         obj.apply_position(obj.position)
     
+    # Sort shapes by their minimum z-coordinate (height) for bottom-to-top plotting
+    sorted_shapes = sorted(obj.shapes, key=lambda shape: np.min(shape.vertices[:, 2]))
+    
     # Project vertices onto each plane
-    for shape in obj.shapes:
+    for shape in sorted_shapes:
         vertices = shape.vertices
         faces = shape.faces
         color = shape.metadata.get('color', 'blue')  # Get color from metadata, default to blue

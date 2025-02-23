@@ -118,19 +118,44 @@ class Component:
 
     def get_global_position(self) -> np.ndarray:
         """Calculate global position by traversing up through parents"""
-        if self.parent is None or self.geometry is None:
-            return (np.array([self.geometry.position.x, 
-                            self.geometry.position.y,
-                            self.geometry.position.z]) 
-                   if self.geometry else np.zeros(3))
+        if self.geometry is None:
+            return np.zeros(3)
         
-        # Get parent's global position
-        parent_global = self.parent.get_global_position()
         local_pos = np.array([self.geometry.position.x,
-                            self.geometry.position.y,
-                            self.geometry.position.z])
+                             self.geometry.position.y,
+                             self.geometry.position.z])
         
-        return parent_global + local_pos
+        if self.parent is None:
+            return local_pos
+        
+        # Get parent's global position and orientation
+        parent_global_pos = self.parent.get_global_position()
+        parent_orientation = self.parent.get_global_orientation()
+        
+        # Convert angles to radians
+        roll = np.radians(parent_orientation.roll)
+        pitch = np.radians(parent_orientation.pitch)
+        yaw = np.radians(parent_orientation.yaw)
+        
+        # Create rotation matrices
+        Rx = np.array([[1, 0, 0],
+                       [0, np.cos(roll), -np.sin(roll)],
+                       [0, np.sin(roll), np.cos(roll)]])
+        
+        Ry = np.array([[np.cos(pitch), 0, np.sin(pitch)],
+                       [0, 1, 0],
+                       [-np.sin(pitch), 0, np.cos(pitch)]])
+        
+        Rz = np.array([[np.cos(yaw), -np.sin(yaw), 0],
+                       [np.sin(yaw), np.cos(yaw), 0],
+                       [0, 0, 1]])
+        
+        # Combined rotation matrix (order: yaw, pitch, roll)
+        R = Rz @ Ry @ Rx
+        
+        # Transform local position by parent's rotation and add to parent's position
+        rotated_pos = R @ local_pos
+        return parent_global_pos + rotated_pos
 
     def get_global_orientation(self) -> Orientation:
         """Calculate global orientation by combining parent orientations"""
@@ -177,6 +202,7 @@ class Component:
         
         # Add all children's objects
         for child in self.children:
+            print(f"Plotting child {child.name} of {self.name} at absolute position {self.get_global_position()}")
             try:
                 child_obj = child.plot(color=color, colors_dict=colors_dict)
                 if child_obj is not None and child_obj.shapes:

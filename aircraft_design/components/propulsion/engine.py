@@ -22,16 +22,25 @@ class EngineGeometry(Geometry):
         """Create a 3D object representation of this geometry"""
         obj = Object3D()
         
-        # Create a cylinder for the engine, rotated 90 degrees around Y axis to face forward
+        # Create a cylinder for the engine
         cylinder = create_cylinder(
             self.parameters['radius'],
-            self.parameters['length'],
-            rotation=np.array([0, np.pi/2, 0])  # Rotate 90 degrees around Y axis
+            self.parameters['length']
         )
+        
+        # Add cylinder to object
         obj.add_shape(cylinder)
         
-        # Apply position after creating the engine
-        obj.position = np.array([self.position.x, self.position.y, self.position.z])
+        # Rotate cylinder 90 degrees around Y axis to face forward
+        # This is done by rotating the vertices directly
+        for shape in obj.shapes:
+            # Swap X and Z coordinates to rotate 90 degrees around Y
+            shape.vertices[:, [0, 2]] = shape.vertices[:, [2, 0]]  # Swap X and Z
+            shape.vertices[:, 0] *= -1  # Negate X to complete rotation
+        
+        # Apply position
+        if self.position:
+            obj.position = np.array([self.position.x, self.position.y, self.position.z])
         
         return obj
 class Engine(Component):
