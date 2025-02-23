@@ -1,13 +1,17 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from aircraft_design.core.plotting import Object3D
 
 @dataclass
 class Position:
-    """Position relative to parent component in meters"""
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
+    """3D position in aircraft coordinates"""
+    x: float = 0.0  # Positive forward
+    y: float = 0.0  # Positive right
+    z: float = 0.0  # Positive up
 
 @dataclass
 class Orientation:
@@ -27,6 +31,17 @@ class Geometry(ABC):
     def validate(self) -> bool:
         """Validate the geometry parameters"""
         pass
+
+    @abstractmethod
+    def create_object(self) -> Object3D:
+        """Create a 3D object representation of this geometry"""
+        pass
+
+    def plot(self, ax: Axes3D, color: str = 'blue', alpha: float = 0.5) -> None:
+        """Plot the geometry using its 3D object representation"""
+        from aircraft_design.core.plotting import plot_3d_object
+        obj = self.create_object()
+        plot_3d_object(ax, obj, color, alpha)
 
 class AnalysisModule(ABC):
     """Base class for all analysis modules"""
@@ -101,22 +116,21 @@ class Component:
         if analysis_name in self.analyses:
             del self.analyses[analysis_name]
 
-    def get_global_position(self) -> Position:
+    def get_global_position(self) -> np.ndarray:
         """Calculate global position by traversing up through parents"""
         if self.parent is None or self.geometry is None:
-            return self.geometry.position if self.geometry else Position()
+            return (np.array([self.geometry.position.x, 
+                            self.geometry.position.y,
+                            self.geometry.position.z]) 
+                   if self.geometry else np.zeros(3))
         
         # Get parent's global position
         parent_global = self.parent.get_global_position()
-        local_pos = self.geometry.position
+        local_pos = np.array([self.geometry.position.x,
+                            self.geometry.position.y,
+                            self.geometry.position.z])
         
-        # TODO: Apply proper orientation transformations
-        # For now, simple addition of coordinates
-        return Position(
-            parent_global.x + local_pos.x,
-            parent_global.y + local_pos.y,
-            parent_global.z + local_pos.z
-        )
+        return parent_global + local_pos
 
     def get_global_orientation(self) -> Orientation:
         """Calculate global orientation by combining parent orientations"""
@@ -134,6 +148,44 @@ class Component:
             parent_global.pitch + local_orient.pitch,
             parent_global.yaw + local_orient.yaw
         )
+
+    def plot(self, color: Optional[str] = None, colors_dict: Optional[Dict[str, str]] = None) -> Object3D:
+        """Create a 3D object representation of this component and all its children"""
+        obj = Object3D()
+        
+        # Add this component's geometry if it exists
+        if hasattr(self, 'geometry') and self.geometry is not None:
+            try:
+                component_obj = self.geometry.create_object()
+                if component_obj is not None and component_obj.shapes:
+                    # Apply global position
+                    total_position = self.get_global_position()
+                    if np.any(total_position != 0):
+                        component_obj.apply_position(total_position)
+                    
+                    # Set color in metadata if provided
+                    component_color = colors_dict.get(self.name, color) if colors_dict else color
+                    if component_color:
+                        for shape in component_obj.shapes:
+                            shape.metadata['color'] = component_color
+                    
+                    # Add shapes to combined object
+                    for shape in component_obj.shapes:
+                        obj.add_shape(shape)
+            except Exception as e:
+                print(f"Warning: Failed to create object for {self.name}: {e}")
+        
+        # Add all children's objects
+        for child in self.children:
+            try:
+                child_obj = child.plot(color=color, colors_dict=colors_dict)
+                if child_obj is not None and child_obj.shapes:
+                    for shape in child_obj.shapes:
+                        obj.add_shape(shape)
+            except Exception as e:
+                print(f"Warning: Failed to plot child {child.name}: {e}")
+        
+        return obj
 
     def run_analysis(self, analysis_name: str) -> Dict[str, Any]:
         """Run a specific analysis"""

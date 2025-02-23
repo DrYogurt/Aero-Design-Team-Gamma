@@ -738,9 +738,9 @@ def main():
         seat_configs=seat_configs,
         galleys=galleys,
         wingspan=300, #f
-        sweep=37.5, #deg
-        wing_chord_data=[(0, 65), (30, 35), (100, 10)],
-        wing_thickness=0.12,
+        sweep=45, #deg
+        wing_chord_data=[(0, 150), (100, 5)],
+        wing_thickness=0.30,
         dihedral=5,
         v_span=20, 
         v_sweep=35,
@@ -749,7 +749,7 @@ def main():
         h_sweep=35,
         h_chord_data=[(0, 40), (100, 10)],
         tail_configuration='low',
-        wing_center_x=-50,  # Move wing forward
+        wing_center_x=-75,  # Move wing forward
         wing_center_y=2,   # Adjust wing height
         cockpit_length=20,
         engines=engines
