@@ -3,56 +3,44 @@ from typing import Dict, Any
 from aircraft_design.core.base import Component, AnalysisModule
 from aircraft_design.components.aerodynamics.wing_geometry import AerodynamicGeometry
 
-class BasicLiftAnalysis(AnalysisModule):
-    """Simple lift analysis for aerodynamic surfaces"""
+class OswaldEfficiencyAnalysis(AnalysisModule):
+    """Calculate the Oswald efficiency factor for a wing"""
     def __init__(self):
-        super().__init__('basic_lift')
+        super().__init__('oswald_efficiency')
         self.parameters = {
-            'alpha': 0.0,          # angle of attack in degrees
             'mach': 0.0,           # Mach number
-            'reynolds': 1e6,       # Reynolds number
-            'cl_alpha': 2*3.14159, # lift curve slope (default = 2pi)
+            'use_simple': False,   # Use simplified calculation method
         }
-        self.required_parameters = ['alpha', 'mach']
+        self.required_parameters = ['mach']
 
     def run(self, component: Component) -> Dict[str, Any]:
-        """Calculate basic lift characteristics"""
+        """Calculate Oswald efficiency factor"""
         if not isinstance(component.geometry, AerodynamicGeometry):
-            raise ValueError("Component must have AerodynamicGeometry for lift analysis")
+            raise ValueError("Component must have AerodynamicGeometry for efficiency analysis")
 
         geom = component.geometry
-        
-        # Basic lift calculation
-        alpha_rad = np.radians(self.parameters['alpha'])
+        AR = max(geom.aspect_ratio, 0.001)  # Prevent division by zero
         sweep_rad = np.radians(geom.parameters['sweep'])
         
-        # Prandtl-Glauert compressibility correction
-        mach = self.parameters['mach']
-        if mach >= 1.0:
-            mach = 0.99  # Limit to subsonic
-        beta = np.sqrt(1 - mach**2)
-        
-        # Finite wing correction
-        AR = max(geom.aspect_ratio, 0.001)  # Prevent division by zero
-        e = 0.9  # Oswald efficiency factor (simplified)
-        cl_alpha = self.parameters['cl_alpha']
-        
-        # Lift curve slope correction for sweep and AR
-        denominator = np.sqrt(1 + (cl_alpha * np.cos(sweep_rad) / (np.pi * AR * e))**2)
-        if denominator < 0.001:
-            denominator = 0.001  # Prevent division by very small numbers
+        if self.parameters['use_simple']:
+            # Simple estimation (typical for preliminary design)
+            e = 0.9
+        else:
+            # More detailed calculation based on empirical data
+            # Using Raymer's method (Aircraft Design: A Conceptual Approach)
+            e = 1.78 * (1 - 0.045 * AR**0.68) - 0.64
             
-        cl_alpha_wing = (cl_alpha * np.cos(sweep_rad)) / denominator
-        
-        # Calculate CL
-        cl = cl_alpha_wing * alpha_rad / beta
-        
+            # Apply sweep correction
+            e *= np.cos(sweep_rad)**0.15
+            
+            # Apply Mach correction
+            mach = min(self.parameters['mach'], 0.99)
+            e *= 1 - 0.08 * mach**2
+
         return {
-            'CL': float(cl),  # Convert to Python float to avoid numpy warnings
-            'CL_alpha': float(cl_alpha_wing),
+            'oswald_efficiency': float(e),
             'aspect_ratio': float(AR),
-            'effective_sweep': float(np.degrees(sweep_rad)),
-            'mach_correction': float(1/beta) if beta > 0.001 else 1000.0  # Limit maximum correction
+            'sweep': float(np.degrees(sweep_rad))
         }
 
 class ParasiticDragAnalysis(AnalysisModule):
@@ -125,7 +113,7 @@ class AerodynamicComponent(Component):
         self.geometry = AerodynamicGeometry()
         
         # Add default analysis modules
-        self.add_analysis(BasicLiftAnalysis())
+        self.add_analysis(OswaldEfficiencyAnalysis())
         self.add_analysis(ParasiticDragAnalysis())
     def set_basic_geometry(self, span: float, root_chord: float, tip_chord: float, 
                          sweep: float = 0.0, dihedral: float = 0.0, twist: float = 0.0):

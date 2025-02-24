@@ -108,41 +108,24 @@ def create_ellipsoid(a: float, b: float, c: float, num_points: int = 32) -> Shap
 
 def create_wing_section(root_pos: np.ndarray, tip_pos: np.ndarray, 
                        root_chord: float, tip_chord: float,
-                       thickness_ratio: float = 0.12,
+                       thickness_ratio_root: float = 0.12,
+                       thickness_ratio_tip: float = 0.08,
                        num_points: int = 20) -> Shape3D:
-    """Create vertices and faces for a wing section"""
-    # Create airfoil shape (simplified)
-    def airfoil_points(chord: float, num_points: int = 20) -> np.ndarray:
-        # Create points for upper and lower surface
-        x = np.concatenate([
-            np.linspace(0, chord, num_points//2),  # Upper surface
-            np.linspace(chord, 0, num_points//2)   # Lower surface
+    """Create vertices and faces for a wing section with triangular thickness"""
+    # Function to create points for a triangular wing section
+    def wing_section_points(chord: float, thickness: float) -> np.ndarray:
+        # Create points for a triangular wing section
+        points = np.array([
+            [0, 0, 0],              # 0: Leading edge top
+            [chord, 0, 0],          # 1: Trailing edge top
+            [0, 0, -thickness],     # 2: Leading edge bottom
+            [chord, 0, -thickness*.9]  # 3: Trailing edge bottom (slightly below top)
         ])
-        
-        # Simple symmetric airfoil shape
-        y = np.zeros_like(x)
-        
-        # Calculate z coordinates (thickness distribution)
-        # Upper surface
-        z_upper = thickness_ratio * chord * (0.2969*np.sqrt(x[:num_points//2]/chord) - 
-                                   0.1260*(x[:num_points//2]/chord) - 
-                                   0.3516*(x[:num_points//2]/chord)**2 + 
-                                   0.2843*(x[:num_points//2]/chord)**3 - 
-                                   0.1015*(x[:num_points//2]/chord)**4)
-        
-        # Lower surface (negative of upper)
-        z_lower = -thickness_ratio * chord * (0.2969*np.sqrt(x[num_points//2:]/chord) - 
-                                   0.1260*(x[num_points//2:]/chord) - 
-                                   0.3516*(x[num_points//2:]/chord)**2 + 
-                                   0.2843*(x[num_points//2:]/chord)**3 - 
-                                   0.1015*(x[num_points//2:]/chord)**4)
-        
-        z = np.concatenate([z_upper, z_lower])
-        return np.column_stack([x, y, z])
+        return points
 
-    # Create root and tip airfoil points
-    root_points = airfoil_points(root_chord, num_points)
-    tip_points = airfoil_points(tip_chord, num_points)
+    # Create root and tip section points
+    root_points = wing_section_points(root_chord, root_chord * thickness_ratio_root)
+    tip_points = wing_section_points(tip_chord, tip_chord * thickness_ratio_tip)
     
     # Transform tip points to tip position
     direction = tip_pos - root_pos
@@ -151,18 +134,16 @@ def create_wing_section(root_pos: np.ndarray, tip_pos: np.ndarray,
     
     # Create vertices by combining root and tip points
     vertices = np.vstack([root_points, tip_points])
-    
+    #print(f"Vertices: {vertices}")
     # Create faces
-    faces = []
-    n = num_points
-    
-    # Create faces connecting root and tip
-    for i in range(n-1):
-        # Connect current point to next point on both root and tip
-        faces.append([i, i+1, i+1+n, i+n])
-    
-    # Connect last point back to first to close the section
-    faces.append([n-1, 0, n, 2*n-1])
+    faces = [
+        [0, 1, 5, 4],      # Top face
+        [2, 3, 7, 6],      # Bottom face
+        [0, 2, 6, 4],      # Leading edge face
+        [1, 3, 7, 5],      # Trailing edge face
+        [0, 1, 3, 2],      # Root face
+        [4, 5, 7, 6]       # Tip face
+    ]
     
     return Shape3D(vertices=vertices, faces=faces)
 
@@ -177,7 +158,7 @@ def plot_3d_object(ax: Axes3D, obj: Object3D, color: str = 'blue', alpha: float 
     """Plot a complete 3D object"""
     # Apply any global position offset
     if np.any(obj.position != 0):
-        print(f"Plotting object at position: {obj.position}")
+        # print(f"Plotting object at position: {obj.position}")
         obj.apply_position(obj.position)
         
     for shape in obj.shapes:

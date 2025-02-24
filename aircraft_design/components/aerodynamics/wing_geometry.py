@@ -254,7 +254,8 @@ class WaypointWingGeometry(AerodynamicGeometry):
                 root_pos, tip_pos,
                 wp1.chord_length,
                 wp2.chord_length,
-                thickness_ratio=wp1.thickness/wp1.chord_length
+                thickness_ratio_root=wp1.thickness/wp1.chord_length,
+                thickness_ratio_tip=wp2.thickness/wp2.chord_length
             )
             obj.add_shape(right_section)
             
@@ -265,7 +266,8 @@ class WaypointWingGeometry(AerodynamicGeometry):
                 root_pos, tip_pos,
                 wp1.chord_length,
                 wp2.chord_length,
-                thickness_ratio=wp1.thickness/wp1.chord_length
+                thickness_ratio_root=wp1.thickness/wp1.chord_length,
+                thickness_ratio_tip=wp2.thickness/wp2.chord_length
             )
             obj.add_shape(left_section)
         
@@ -273,6 +275,44 @@ class WaypointWingGeometry(AerodynamicGeometry):
         obj.position = np.array([self.position.x, self.position.y, self.position.z])
         
         return obj
+
+    @property
+    def volume(self) -> float:
+        """Calculate the total volume of the wing by integrating over sections"""
+        return self._calculate_volume()
+    
+    def _calculate_volume(self) -> float:
+        """Calculate the total volume of the wing by integrating over sections
+        
+        Returns:
+            float: Total wing volume in cubic feet
+        """
+        if len(self.waypoints) < 2:
+            return 0.0
+            
+        total_volume = 0.0
+        half_span = self.parameters['span'] / 2
+        
+        # Integrate volume between each pair of waypoints
+        for i in range(len(self.waypoints) - 1):
+            wp1 = self.waypoints[i]
+            wp2 = self.waypoints[i + 1]
+            
+            # Calculate section span
+            dy = (wp2.span_location - wp1.span_location) * half_span
+            
+            # Calculate average cross-sectional area using trapezoidal rule
+            area1 = wp1.chord_length * wp1.thickness
+            area2 = wp2.chord_length * wp2.thickness
+            avg_area = (area1 + area2) / 2
+            
+            # Calculate volume of this section
+            section_volume = avg_area * dy
+            
+            # Multiply by 2 to account for both wings
+            total_volume += 2 * section_volume
+            
+        return total_volume
 
 class TailGeometry(AerodynamicGeometry):
     """Geometry for vertical or angled tail surfaces"""
@@ -335,10 +375,11 @@ class TailGeometry(AerodynamicGeometry):
             
             # Calculate tip position considering sweep and cant angle
             tip_x = height * np.tan(sweep_rad)
-            tip_y = 0
+            # Add y-offset based on cant angle
+            tip_y = height * np.sin(cant_rad)  # Changed: Add y-component from cant
             tip_z = height * np.cos(cant_rad)
             
-            root_pos = np.array([self.position.x, self.position.y, self.position.z])
+            root_pos = np.array([0, 0, 0])  # Changed: Start at origin
             tip_pos = np.array([tip_x, tip_y, tip_z])
             
             # Create tail section
@@ -346,14 +387,15 @@ class TailGeometry(AerodynamicGeometry):
                 root_pos, tip_pos,
                 self.parameters['root_chord'],
                 self.parameters['tip_chord'],
-                thickness_ratio=self.parameters['thickness_ratio']
+                thickness_ratio_root=self.parameters['thickness_ratio'],
+                thickness_ratio_tip=self.parameters['thickness_ratio']
             )
             obj.add_shape(tail_section)
         else:
             # For horizontal tail, use span
             return super().create_object()
         
-        # Apply position after creating the wing
+        # Apply position after creating the tail
         obj.position = np.array([self.position.x, self.position.y, self.position.z])
         
         return obj
@@ -379,7 +421,8 @@ class TailGeometry(AerodynamicGeometry):
                 root_pos, tip_pos,
                 self.parameters['root_chord'],
                 self.parameters['tip_chord'],
-                thickness_ratio=self.parameters['thickness_ratio']
+                thickness_ratio_root=self.parameters['thickness_ratio'],
+                thickness_ratio_tip=.12 # TODO: Make this dynamic
             )
             plot_3d_shape(ax, vertices, faces, color, alpha)
         else:

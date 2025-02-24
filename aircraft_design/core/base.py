@@ -202,7 +202,7 @@ class Component:
         
         # Add all children's objects
         for child in self.children:
-            print(f"Plotting child {child.name} of {self.name} at absolute position {self.get_global_position()}")
+            #print(f"Plotting child {child.name} of {self.name} at absolute position {self.get_global_position()}")
             try:
                 child_obj = child.plot(color=color, colors_dict=colors_dict)
                 if child_obj is not None and child_obj.shapes:

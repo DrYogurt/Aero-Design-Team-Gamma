@@ -14,6 +14,8 @@ class EngineGeometry(Geometry):
             'bypass_ratio': 0.0,
             'thrust': 0.0
         })
+        # Set default orientation for horizontal alignment
+        self.orientation.pitch = -90  # Rotate -90 degrees around Y axis to point forward
     
     def validate(self) -> bool:
         return all(v > 0 for v in self.parameters.values())
@@ -28,19 +30,19 @@ class EngineGeometry(Geometry):
             self.parameters['length']
         )
         
-        # Add cylinder to object
+        # Rotate cylinder to point forward (around Y axis)
+        pitch_rad = np.radians(self.orientation.pitch)
+        Ry = np.array([[np.cos(pitch_rad), 0, np.sin(pitch_rad)],
+                      [0, 1, 0],
+                      [-np.sin(pitch_rad), 0, np.cos(pitch_rad)]])
+        
+        # Apply rotation to vertices
+        cylinder.vertices = cylinder.vertices @ Ry.T
+        
         obj.add_shape(cylinder)
         
-        # Rotate cylinder 90 degrees around Y axis to face forward
-        # This is done by rotating the vertices directly
-        for shape in obj.shapes:
-            # Swap X and Z coordinates to rotate 90 degrees around Y
-            shape.vertices[:, [0, 2]] = shape.vertices[:, [2, 0]]  # Swap X and Z
-            shape.vertices[:, 0] *= -1  # Negate X to complete rotation
-        
-        # Apply position
-        if self.position:
-            obj.position = np.array([self.position.x, self.position.y, self.position.z])
+        # Apply position after creating the engine
+        obj.position = np.array([self.position.x, self.position.y, self.position.z])
         
         return obj
 class Engine(Component):
