@@ -678,7 +678,7 @@ if __name__ == "__main__":
             print(f"- {result}: {value}") 
     """
     # Create a 3D view
-    #fig, ax = aircraft.plot_3d()
+    fig, ax = aircraft.plot_3d()
     plt.show()
 
     # Create three-view drawing of the wing only
