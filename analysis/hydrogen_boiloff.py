@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, Callable
 
 @dataclass
-class FluidProperies:
+class FluidProperties:
     density: float  # kg/m3
     dynamic_viscosity: float  # kg/s*m
     heat_capacity: float  # J/kg*K
@@ -236,20 +236,7 @@ def analyze_tank_thermal_performance(
 
 # Example usage:
 if __name__ == "__main__":
-    # Example air properties at 35,000 ft
-    air_cruise = FluidProperties(
-        density=0.38035,  # kg/m3
-        dynamic_viscosity=1.39e-5,  # kg/s*m
-        heat_capacity=1002,  # J/kg*K
-        thermal_conductivity=0.0241  # W/m*K
-    )
-    
-    # Example tank geometry
-    tank = TankGeometry(
-        diameter=1.939,  # m
-        length=16.76  # m
-    )
-    
+   
     # Example materials (from paper's Appendix A)
     materials = {
         "outer_shell": MaterialProperties(
@@ -269,7 +256,7 @@ if __name__ == "__main__":
         ),
         "inner_shell": MaterialProperties(
             thermal_conductivity=225.94,  # Aluminum W/m*K
-            density=2700,  # kg/m3
+            density=2700*.9,  # kg/m3
             thickness=0.001778  # m
         ),
         "lug": MaterialProperties(
@@ -298,8 +285,8 @@ if __name__ == "__main__":
     
     # Tank geometry
     tank = TankGeometry(
-        diameter=1.939,  # m
-        length=16.76  # m
+        diameter=10/3.281,  # m
+        length=60/3.281  # m
     )
     
     # Target boiloff rate (50% of idle fuel usage = 173 lbs/hr)
@@ -320,5 +307,7 @@ if __name__ == "__main__":
     print(f"Calculated thickness: {thickness/0.0254:.2f} inches")
     print(f"Paper insulation weight: 624 lbs")
     #print(f"Tank  Surface Area: {tank.surface_area:.3f} m^2")
-    weight = tank.surface_area * thickness * materials["insulation"].density * 3.28084**3  # m^3 to ft^3
-    print(f"Calculated weight: {weight:.0f} lbs")
+    weight = tank.surface_area * thickness * materials["insulation"].density * 2.2
+    total_weight = weight + tank.surface_area * materials["inner_shell"].density * materials["inner_shell"].thickness * 2.2
+    print(f"Calculated insulation weight: {weight:.0f} lbs")
+    print(f"Total weight: {total_weight:.0f} lbs")
