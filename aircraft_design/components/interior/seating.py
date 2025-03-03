@@ -1,19 +1,21 @@
 from dataclasses import dataclass
 from typing import List, Dict, Optional
+import numpy as np
 from .base import InteriorComponent, InteriorGeometry
 from .service import Galley, Bathroom
 from .aisle import Aisle
+from aircraft_design.core.plotting import Object3D, Shape3D, create_box
 
 @dataclass
 class SeatGeometry(InteriorGeometry):
-    """Individual seat geometry"""
+    """Individual seat geometry with simplified parameters"""
     def __init__(self):
         super().__init__()
         self.parameters.update({
-            'pitch': 0.0,  # Distance between rows
-            'recline_angle': 0.0,
-            'cushion_thickness': 0.0,
-            'armrest_width': 0.0,
+            'width': 0.0,  # Width of the seat
+            'depth': 0.0,  # Depth/length of the seat
+            'height': 0.0,  # Height of the seat back
+            'seat_spacing': 0.0,  # Distance from one seat to the next (center to center)
         })
 
 class Seat(InteriorComponent):
@@ -22,6 +24,37 @@ class Seat(InteriorComponent):
         super().__init__(name)
         self.geometry = SeatGeometry()
         self.seat_class = seat_class
+        self.row = 0
+        self.group = 0
+
+    def plot(self, color: str = 'lightblue') -> Object3D:
+        """Create a 3D visualization of the seat"""
+        obj = Object3D()
+        
+        # Get global position
+        global_pos = self.get_global_position()
+        
+        # Create seat box
+        seat_box = create_box(
+            width=self.geometry.parameters['width'],
+            length=self.geometry.parameters['depth'],
+            height=self.geometry.parameters['height']
+        )
+        
+        # Position the seat using global coordinates
+        seat_box.vertices += global_pos
+        
+        # Add metadata
+        seat_box.metadata.update({
+            'type': 'seat',
+            'class': self.seat_class,
+            'row': self.row,
+            'group': self.group,
+            'color': color
+        })
+        
+        obj.add_shape(seat_box)
+        return obj
 
 class SeatingSection(InteriorComponent):
     """A section of the aircraft with a specific seating configuration"""
@@ -31,6 +64,7 @@ class SeatingSection(InteriorComponent):
         self.seat_groups: List[List[Seat]] = []  # Groups of seats separated by aisles
         self.aisles: List[Aisle] = []
         self.service_areas: List[InteriorComponent] = []  # Galleys, bathrooms, etc.
+        self.position = np.zeros(3)
         
     def add_seat_group(self, num_seats: int, seat_class: str = 'economy'):
         """Add a group of seats (e.g., 3 seats together)"""
@@ -51,6 +85,23 @@ class SeatingSection(InteriorComponent):
             raise ValueError("Service component must be a Galley or Bathroom")
         self.service_areas.append(service_component)
         self.add_child(service_component)  # Add as child component for proper hierarchy
+
+    def plot(self, color: str = 'lightblue') -> Object3D:
+        """Create a 3D visualization of the seating section"""
+        obj = Object3D()
+        
+        # Plot all seats
+        for group_idx, group in enumerate(self.seat_groups):
+            for seat in group:
+                seat_obj = seat.plot(color)
+                obj.shapes.extend(seat_obj.shapes)
+        
+        # Plot service areas
+        for service in self.service_areas:
+            service_obj = service.plot()
+            obj.shapes.extend(service_obj.shapes)
+            
+        return obj
         
     def get_total_width(self) -> float:
         """Calculate total width including seats and aisles"""

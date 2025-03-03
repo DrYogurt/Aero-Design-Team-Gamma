@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Dict, Any
 from aircraft_design.core.base import Component, AnalysisModule
-from aircraft_design.components.aerodynamics.wing_geometry import AerodynamicGeometry
+from aircraft_design.components.aerodynamics.wing_geometry import AerodynamicGeometry, WaypointWingGeometry, TrailingEdgeWingGeometry
 
 class OswaldEfficiencyAnalysis(AnalysisModule):
     """Calculate the Oswald efficiency factor for a wing"""
@@ -31,16 +31,70 @@ class OswaldEfficiencyAnalysis(AnalysisModule):
             e = 1.78 * (1 - 0.045 * AR**0.68) - 0.64
             
             # Apply sweep correction
-            e *= np.cos(sweep_rad)**0.15
+            #e *= np.cos(sweep_rad)**0.15
             
             # Apply Mach correction
-            mach = min(self.parameters['mach'], 0.99)
-            e *= 1 - 0.08 * mach**2
+            #mach = min(self.parameters['mach'], 0.99)
+            #e *= 1 - 0.08 * mach**2
 
         return {
             'oswald_efficiency': float(e),
             'aspect_ratio': float(AR),
             'sweep': float(np.degrees(sweep_rad))
+        }
+
+class AverageThicknessAnalysis(AnalysisModule):
+    """Calculate the average thickness of a wing"""
+    def __init__(self):
+        super().__init__('average_thickness')
+    
+    def run(self, geom: AerodynamicGeometry) -> Dict[str, Any]:
+        """Calculate average thickness"""
+        if not isinstance(geom, (WaypointWingGeometry, TrailingEdgeWingGeometry)):
+            raise ValueError("Component must have WaypointWingGeometry or TrailingEdgeWingGeometry for average thickness analysis")
+        
+        if len(geom.waypoints) < 2:
+            return {
+                'average_thickness': 0.0,
+                'average_tc_ratio': 0.0,
+                'weighted_area': 0.0
+            }
+        
+        total_weighted_thickness = 0.0
+        total_weighted_tc = 0.0
+        total_area = 0.0
+        half_span = geom.parameters['span'] / 2
+        
+        # Integrate thickness over the wing span using waypoints
+        for i in range(len(geom.waypoints) - 1):
+            wp1 = geom.waypoints[i]
+            wp2 = geom.waypoints[i + 1]
+            
+            # Calculate section span
+            dy = (wp2.span_location - wp1.span_location) * half_span
+            
+            # Calculate average values for this section
+            avg_chord = (wp1.chord_length + wp2.chord_length) / 2
+            avg_thickness = (wp1.thickness + wp2.thickness) / 2
+            avg_tc_ratio = avg_thickness / avg_chord if avg_chord > 0 else 0
+            
+            # Calculate section area
+            section_area = avg_chord * dy
+            
+            # Add weighted contributions
+            total_weighted_thickness += avg_thickness * section_area
+            total_weighted_tc += avg_tc_ratio * section_area
+            total_area += section_area
+        
+        # Calculate final averages (multiply by 2 for both wings)
+        total_area *= 2
+        avg_thickness = total_weighted_thickness * 2 / total_area if total_area > 0 else 0
+        avg_tc_ratio = total_weighted_tc * 2 / total_area if total_area > 0 else 0
+        
+        return {
+            'average_thickness': float(avg_thickness),
+            'average_tc_ratio': float(avg_tc_ratio),
+            'weighted_area': float(total_area)
         }
 
 class ParasiticDragAnalysis(AnalysisModule):
@@ -58,13 +112,31 @@ class ParasiticDragAnalysis(AnalysisModule):
         })
         self.required_parameters = ['mach', 'wetted_area', 'characteristic_length']
 
+    def _calculate_reynolds_cutoff(self, length: float, mach: float) -> float:
+        """Calculate cutoff Reynolds number based on Mach number (Raymer pg 283)"""
+        k = self.parameters['k_surface']
+         
+        if mach <= 0.9:
+            # Subsonic cutoff Reynolds number
+            return 38.21 * (length/k)**1.053
+        elif mach <= 1.0:
+            # Transonic cutoff Reynolds number
+            return 44.62 * (length/k)**1.053 * (1.0 + 1.5*(mach - 0.9))
+        else:
+            # Supersonic cutoff Reynolds number
+            return 44.62 * (length/k)**1.053 * (1.0 + 0.9*(mach - 0.9))
+
     def _calculate_turbulent_cf(self, reynolds: float, mach: float) -> float:
         """Calculate turbulent skin friction coefficient using Raymer's method"""
-        # Calculate cutoff Reynolds number (Raymer eq. 12.27)
-        k = self.parameters['k_surface']
-        L = self.parameters['characteristic_length']
-        R_cutoff = 38.21 * (L/k)**1.053
-
+        # Calculate actual Reynolds number if not provided
+        if not self.parameters['reynolds']:
+            # TODO: Add proper Reynolds calculation based on flight conditions
+            reynolds = 1e7  # Default value
+            
+        # Calculate cutoff Reynolds number
+        length = self.parameters['characteristic_length']
+        R_cutoff = self._calculate_reynolds_cutoff(length, mach)
+        
         # Use minimum of actual and cutoff Reynolds numbers
         R = min(reynolds, R_cutoff)
         
@@ -76,7 +148,6 @@ class ParasiticDragAnalysis(AnalysisModule):
         """Calculate parasitic drag coefficient"""
         mach = self.parameters['mach']
         wetted_area = self.parameters['wetted_area']
-        ref_area = self.parameters['reference_area']
         form_factor = self.parameters['form_factor']
         
         if not wetted_area:
@@ -94,14 +165,13 @@ class ParasiticDragAnalysis(AnalysisModule):
         # Calculate skin friction coefficient
         cf = self._calculate_turbulent_cf(reynolds, mach)
         
-        # Calculate component CD0 (Raymer eq. 12.23)
-        cd0 = cf * form_factor * wetted_area / ref_area
+        # Calculate component CD0 (without reference area division)
+        cd0 = cf * form_factor * wetted_area
         
         return {
-            'CD0': float(cd0),
+            'CD0_component': float(cd0),  # Parent will divide by reference area
             'Cf': float(cf),
             'wetted_area': float(wetted_area),
-            'reference_area': float(ref_area),
             'form_factor': float(form_factor),
             'reynolds': float(reynolds)
         }

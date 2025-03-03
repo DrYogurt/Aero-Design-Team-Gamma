@@ -20,6 +20,24 @@ class EngineGeometry(Geometry):
     def validate(self) -> bool:
         return all(v > 0 for v in self.parameters.values())
     
+    @property
+    def wetted_area(self) -> float:
+        """Calculate the wetted area of the engine as a cylinder
+        
+        Returns:
+            float: Total surface area including lateral surface and end caps
+        """
+        radius = self.parameters['radius']
+        length = self.parameters['length']
+        
+        # Lateral surface area of cylinder (2πrh)
+        lateral_area = 2 * np.pi * radius * length
+        
+        # Area of two circular end caps (2πr²)
+        end_caps_area = 2 * np.pi * radius * radius
+        
+        return lateral_area + end_caps_area
+    
     def create_object(self) -> Object3D:
         """Create a 3D object representation of this geometry"""
         obj = Object3D()

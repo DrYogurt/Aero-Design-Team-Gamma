@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 from aircraft_design.core.base import Component, Position
 from aircraft_design.components.aerodynamics.basic_aero import AerodynamicComponent
 from aircraft_design.components.fuselage.fuselage_geometry import FuselageGeometry, CrossSection
-from aircraft_design.components.aerodynamics.wing_geometry import WaypointWingGeometry, TailGeometry, SimpleSweptWing
+from aircraft_design.components.aerodynamics.wing_geometry import WaypointWingGeometry, TailGeometry, SimpleSweptWing, TrailingEdgeWingGeometry
 from aircraft_design.components.interior.floor import Floor
 from aircraft_design.components.interior.seating import SeatingSection
 from aircraft_design.components.interior.service import Galley
@@ -84,9 +84,6 @@ class Aircraft(Component):
         
         # Calculate required width and height from seat configs
         for config in seat_configs:
-            if config.get('cargo', False):
-                continue
-                
             # Calculate width needed for seats and aisle
             total_seats = sum(config['seat_distribution'])
             width = (total_seats * config['seat_width'] + 
@@ -118,6 +115,7 @@ class Aircraft(Component):
         # Add cargo section length based on cargo requirements
         cargo_area = sum(config['ceiling_height'] * config['seat_width']*sum(config['seat_distribution']) for config in seat_configs if config.get('cargo', False))
         available_cargo_volume = total_length * cargo_area
+        print(f"available_cargo_volume: {available_cargo_volume}")
         # if there isn't enough space for the cargo, add the necessary cargo length to the total length
         if available_cargo_volume < total_passengers * cargo_per_passenger:
             total_length += (total_passengers * cargo_per_passenger - available_cargo_volume) / cargo_area
@@ -218,31 +216,35 @@ class Aircraft(Component):
                  chord_points: List[Tuple[float, float]],
                  thicknesses: List[float],
                  half_span: float,
-                 sweep: float = 0.0,
+                 te_sweep: float = 0.0,
                  dihedral: float = 0.0,
                  position: Optional[Position] = None) -> None:
-        """Add main wing with given parameters, using chord points and thicknesses to generate waypoints"""
+        """Add main wing with given parameters, using chord points and thicknesses to generate waypoints
+        
+        Args:
+            chord_points: List of (chord_length, span_fraction) tuples
+            thicknesses: List of thickness values for each chord point
+            half_span: Half-span length in feet
+            te_sweep: Trailing edge sweep angle in degrees
+            dihedral: Dihedral angle in degrees
+            position: Position of the wing root
+        """
         if len(chord_points) != len(thicknesses):
             raise ValueError("chord_points and thicknesses must have the same length")
         
-        # Convert sweep angle to radians
-        sweep_rad = np.radians(sweep)
-        
-        # Calculate the total span from the chord points
+        # Calculate the total span
         total_span = half_span * 2
         
-        # Generate waypoints from chord points and thicknesses, adjusting for sweep
+        # Generate waypoints from chord points and thicknesses
         waypoints = []
         for (chord, span_fraction), thickness in zip(chord_points, thicknesses):
-            # Calculate normalized span fraction
-            
             waypoints.append({
                 'span_fraction': span_fraction,
                 'chord': chord,
                 'thickness': thickness
             })
         
-        wing = WaypointWingGeometry(waypoints)
+        wing = TrailingEdgeWingGeometry(waypoints)
         wing_component = AerodynamicComponent("main_wing")
         wing_component.geometry = wing
         wing_component.geometry.position = position if position else Position(0, 0, 0)
@@ -250,7 +252,7 @@ class Aircraft(Component):
         # Update parameters which will automatically create waypoints
         wing.update_parameters({
             'span': total_span,
-            'sweep': sweep,
+            'te_sweep': te_sweep,
             'dihedral': dihedral,
             'root_chord': chord_points[0][0],
             'tip_chord': chord_points[-1][0]
@@ -341,7 +343,7 @@ class Aircraft(Component):
                     z + wing_pos.z
                 )
                 self._register_component(engine_instance, 'engines')
-                wing.add_child(engine_instance)
+                self.add_child(engine_instance)
                 
                 # Create secondary side engine
                 engine_instance = Engine(f"engine_{idx}_pos_{pos_idx + 1}")
@@ -356,7 +358,7 @@ class Aircraft(Component):
                     z + wing_pos.z
                 )
                 self._register_component(engine_instance, 'engines')
-                wing.add_child(engine_instance)
+                self.add_child(engine_instance)
 
     def analyze_performance(self) -> Dict[str, Dict[str, float]]:
         """Run all available analyses on the aircraft and its components"""
@@ -374,6 +376,9 @@ class Aircraft(Component):
         vtail = next((c for c in self.children if c.name == "vertical_tail"), None)
         htail = next((c for c in self.children if c.name == "horizontal_tail"), None)
         engines = [c for c in self.children if c.name.startswith("engine_")]
+        
+        # Get wing reference area for drag coefficients
+        wing_area = wing.geometry.area if wing else 1.0
         
         # Wing analysis
         if wing:
@@ -397,18 +402,61 @@ class Aircraft(Component):
             if drag_analysis:
                 drag_analysis.parameters.update({
                     'mach': 0.85,
-                    'reynolds': 1e7
+                    'reynolds': 1e7,
+                    'characteristic_length': wing.geometry.mean_chord,
+                    'wetted_area': wing.geometry.wetted_area
                 })
                 try:
-                    results['wing'].update(wing.run_analysis('parasitic_drag'))
+                    wing_drag = wing.run_analysis('parasitic_drag')
+                    results['wing'].update({
+                        'CD0': wing_drag['CD0_component'] / wing_area,
+                        'Cf': wing_drag['Cf'],
+                        'wetted_area': wing_drag['wetted_area']
+                    })
                 except Exception as e:
                     print(f"Warning: Wing drag analysis failed: {e}")
-                    results['wing']['CD'] = 0.0
-        
+                    results['wing']['CD0'] = 0.0
+                
+            # Oswald efficiency analysis
+            oswald_analysis = wing.analyses.get('oswald_efficiency')
+            if oswald_analysis:
+                try:
+                    oswald_results = wing.run_analysis('oswald_efficiency')
+                    results['wing']['e'] = oswald_results['oswald_efficiency']
+                    results['wing']['AR'] = oswald_results['aspect_ratio']
+                except Exception as e:
+                    print(f"Warning: Oswald efficiency analysis failed: {e}")
+                    results['wing']['e'] = 0.85  # Default value
+            else:
+                print("Warning: Oswald efficiency analysis not available")
+                results['wing']['e'] = 0.85  # Default value
+
         # Fuselage analysis
         if fuselage:
+            # Get fuselage drag
+            drag_analysis = fuselage.analyses.get('parasitic_drag')
+            if drag_analysis:
+                drag_analysis.parameters.update({
+                    'mach': 0.85,
+                    'reynolds': 1e7,
+                    'characteristic_length': fuselage.geometry.parameters['length'],
+                    'wetted_area': fuselage.geometry.wetted_area,
+                    'form_factor': 1.15  # Typical fuselage form factor
+                })
+                try:
+                    fuselage_drag = fuselage.run_analysis('parasitic_drag')
+                    results['fuselage'].update({
+                        'CD0': fuselage_drag['CD0_component'] / wing_area,
+                        'Cf': fuselage_drag['Cf'],
+                        'wetted_area': fuselage_drag['wetted_area']
+                    })
+                except Exception as e:
+                    print(f"Warning: Fuselage drag analysis failed: {e}")
+                    results['fuselage']['CD0'] = 0.0
+
             results['fuselage'].update({
-                'wetted_area': getattr(fuselage.geometry, 'calculate_wetted_area', lambda: 0.0)(),
+                'wetted_area': fuselage.geometry.wetted_area,
+                'volume': fuselage.geometry.volume
             })
         
         # Tail analyses
@@ -424,6 +472,31 @@ class Aircraft(Component):
                 except Exception as e:
                     print(f"Warning: Vertical tail analysis failed: {e}")
                     results['tail']['vertical'] = {'CL': 0.0, 'CD': 0.0}
+            
+            # Vertical tail drag
+            drag_analysis = vtail.analyses.get('parasitic_drag')
+            if drag_analysis:
+                drag_analysis.parameters.update({
+                    'mach': 0.85,
+                    'reynolds': 1e7,
+                    'characteristic_length': vtail.geometry.mean_chord,
+                    'wetted_area': vtail.geometry.wetted_area,
+                    'form_factor': 1.1  # Typical tail form factor
+                })
+                try:
+                    vtail_drag = vtail.run_analysis('parasitic_drag')
+                    if 'vertical' not in results['tail']:
+                        results['tail']['vertical'] = {}
+                    results['tail']['vertical'].update({
+                        'CD0': vtail_drag['CD0_component'] / wing_area,
+                        'Cf': vtail_drag['Cf'],
+                        'wetted_area': vtail_drag['wetted_area']
+                    })
+                except Exception as e:
+                    print(f"Warning: Vertical tail drag analysis failed: {e}")
+                    if 'vertical' not in results['tail']:
+                        results['tail']['vertical'] = {}
+                    results['tail']['vertical']['CD0'] = 0.0
         
         if htail:
             htail_lift = htail.analyses.get('basic_lift')
@@ -437,6 +510,27 @@ class Aircraft(Component):
                 except Exception as e:
                     print(f"Warning: Horizontal tail analysis failed: {e}")
                     results['tail']['horizontal'] = {'CL': 0.0, 'CD': 0.0}
+            
+            # Horizontal tail drag
+            drag_analysis = htail.analyses.get('parasitic_drag')
+            if drag_analysis:
+                drag_analysis.parameters.update({
+                    'mach': 0.85,
+                    'reynolds': 1e7,
+                    'characteristic_length': htail.geometry.mean_chord,
+                    'wetted_area': htail.geometry.wetted_area,
+                    'form_factor': 1.1  # Typical tail form factor
+                })
+                try:
+                    htail_drag = htail.run_analysis('parasitic_drag')
+                    results['tail']['horizontal'].update({
+                        'CD0': htail_drag['CD0_component'] / wing_area,
+                        'Cf': htail_drag['Cf'],
+                        'wetted_area': htail_drag['wetted_area']
+                    })
+                except Exception as e:
+                    print(f"Warning: Horizontal tail drag analysis failed: {e}")
+                    results['tail']['horizontal']['CD0'] = 0.0
         
         # Engine analysis
         for idx, engine in enumerate(engines):
@@ -447,37 +541,38 @@ class Aircraft(Component):
                 except Exception as e:
                     print(f"Warning: Engine {idx} analysis failed: {e}")
                     results['engines'][f'engine_{idx}'] = {'thrust': 0.0}
-        
-        # Overall aircraft performance
-        if wing and fuselage:
-            # Calculate total drag
-            total_drag = sum(
-                comp.get('CD', 0) 
-                for comp in [results['wing'], results['tail'].get('vertical', {}), 
-                           results['tail'].get('horizontal', {})]
-            )
             
-            # Calculate L/D ratio
-            if total_drag > 0:
-                results['aircraft']['L_D_ratio'] = results['wing'].get('CL', 0) / total_drag
-            else:
-                results['aircraft']['L_D_ratio'] = 0.0
-            
-            # Calculate range using Breguet range equation
-            if 'L_D_ratio' in results['aircraft']:
-                W_fuel = self.configuration.get('fuel_weight', 0)
-                W_total = sum(getattr(c, 'weight', 0) for c in self.children)
-                TSFC = self.configuration.get('TSFC', 0.5)  # Default TSFC
-                
-                if W_fuel > 0 and W_total > W_fuel and TSFC > 0:
-                    results['aircraft']['range'] = (
-                        2/TSFC * 
-                        results['aircraft']['L_D_ratio'] * 
-                        np.log(W_total/(W_total - W_fuel))
-                    )
-                else:
-                    results['aircraft']['range'] = 0.0
-        
+            # Engine drag
+            drag_analysis = engine.analyses.get('parasitic_drag')
+            if drag_analysis:
+                drag_analysis.parameters.update({
+                    'mach': 0.85,
+                    'reynolds': 1e7,
+                    'characteristic_length': engine.geometry.parameters['length'],
+                    'wetted_area': engine.geometry.wetted_area,
+                    'form_factor': 1.3  # Typical nacelle form factor
+                })
+                try:
+                    engine_drag = engine.run_analysis('parasitic_drag')
+                    results['engines'][f'engine_{idx}'].update({
+                        'CD0': engine_drag['CD0_component'] / wing_area,
+                        'Cf': engine_drag['Cf'],
+                        'wetted_area': engine_drag['wetted_area']
+                    })
+                except Exception as e:
+                    print(f"Warning: Engine {idx} drag analysis failed: {e}")
+                    results['engines'][f'engine_{idx}']['CD0'] = 0.0
+
+        # Calculate total aircraft CD0
+        total_cd0 = (
+            results['wing'].get('CD0', 0.0) +
+            results['fuselage'].get('CD0', 0.0) +
+            results['tail'].get('vertical', {}).get('CD0', 0.0) +
+            results['tail'].get('horizontal', {}).get('CD0', 0.0) +
+            sum(engine.get('CD0', 0.0) for engine in results['engines'].values())
+        )
+        results['aircraft']['CD0'] = total_cd0
+
         return results
 
 
@@ -595,10 +690,11 @@ def main():
 
     # Add fuselage
     aircraft.add_fuselage(
-        total_passengers=1250,
+        total_passengers=1255,
         seat_configs=seat_configs,
         galleys=[
             {'length': 20, 'number': 2, 'floor': 1},
+            {'length': 30, 'number': 1, 'floor': 1},
         ],
         cockpit_length=20,
         cargo_per_passenger=10,
@@ -609,15 +705,17 @@ def main():
     fuselage_height = aircraft.fuselage.geometry.parameters['max_height']
     fuselage_width = aircraft.fuselage.geometry.parameters['max_width']
     fuselage_length = aircraft.fuselage.geometry.parameters['length']
-
+    print(f"Fuselage Height {fuselage_height}")
+    print(f"Fuselage Width {fuselage_width}")
+    print(f"Fuselage Length {fuselage_length}")
     # Add main wing
     aircraft.add_wing(
-        chord_points=[(150, 0), (105, .3), (80, .5), (30, .8), (10, 1)],  # (chord, span_location)
-        half_span=275/2,
-        thicknesses=[fuselage_height, fuselage_height*.8,fuselage_height*.8,fuselage_height*.5, 10*0.12],
-        sweep=40,
-        dihedral=0,
-        position=Position(x=20, y=0, z=fuselage_height/2)
+        chord_points=[(150, 0), (90, 0.25), (40, 0.5), (10, 1.0)],  # (chord, span_location)
+        half_span=300/2,
+        thicknesses=[fuselage_height, fuselage_height*.4, 40*.2, 30*.1],
+        te_sweep=5,  # Trailing edge sweep angle
+        dihedral=3,   # Slight dihedral
+        position=Position(x=50, y=0, z=fuselage_height/2)  # Position relative to fuselage length
     )
     # Print the area of the wing
     wing_area = aircraft.children[-1].geometry.area
@@ -626,31 +724,31 @@ def main():
 
     # Add vertical tail
     aircraft.add_tail(
-        half_span=20,  
+        half_span=40,  
         root_chord=35,  
         tip_chord=20,   
         sweep=35,
         tail_type='vertical',
         position=Position(x=fuselage_length*.8, y=10, z=fuselage_height/3),
-        cant_angle=20  # 15 degrees outward cant
+        cant_angle=30  # 15 degrees outward cant
     )
     aircraft.add_tail(
-        half_span=20,  
+        half_span=40,  
         root_chord=35,  
         tip_chord=20,   
         sweep=35,
         tail_type='vertical',
         position=Position(x=fuselage_length*.8, y=-10, z=fuselage_height/3),
-        cant_angle=-20  # 15 degrees outward cant
+        cant_angle=-30  # 15 degrees outward cant
     )
 
     # Add engines
     aircraft.add_engines([{
-        'radius': 5,
+        'radius': 5.,
         'length': 20,
         'positions': [
-            (30, 50, -15),   # Adjusted X position to be relative to wing
-            (70, 100, -15)   # Adjusted X position to be relative to wing
+            (150, 0, 5),   # Adjusted X position to be relative to wing
+            (150, 25, 7)   # Adjusted X position to be relative to wing
         ]
     }])
 
@@ -658,17 +756,28 @@ def main():
 
 if __name__ == "__main__":
     aircraft = main()
-    print(f"Wing Area: {aircraft.wing.geometry.area} square feet")
-    print(f"Aspect Ratio: {aircraft.wing.geometry.aspect_ratio}")
-    print(f"Volume: {aircraft.wing.geometry.volume} cubic feet")
-    """
-    print("\nAircraft Components:")
-    for child in aircraft.children:
-        print(f"- {child.name}")
-        if hasattr(child, 'geometry') and child.geometry:
-            print("  Parameters:")
-            for key, value in child.geometry.parameters.items():
-                print(f"    {key}: {value}")
+    
+    # Print geometric properties for main wing
+    print("\nMain Wing Properties:")
+    print(f"Area: {aircraft.wing.geometry.area:.2f} square feet")
+    print(f"Aspect Ratio: {aircraft.wing.geometry.aspect_ratio:.2f}")
+    print(f"Volume: {aircraft.wing.geometry.volume:.2f} cubic feet")
+    print(f"Mean Chord: {aircraft.wing.geometry.mean_chord:.2f} feet")
+    
+    # Print geometric properties for vertical tails
+    if hasattr(aircraft, 'vertical_tail'):
+        if isinstance(aircraft.vertical_tail, list):
+            for i, tail in enumerate(aircraft.vertical_tail):
+                print(f"\nVertical Tail {i+1} Properties:")
+                print(f"Area: {tail.geometry.area:.2f} square feet")
+                print(f"Aspect Ratio: {tail.geometry.aspect_ratio:.2f}")
+                print(f"Mean Chord: {tail.geometry.mean_chord:.2f} feet")
+        else:
+            print("\nVertical Tail Properties:")
+            print(f"Area: {aircraft.vertical_tail.geometry.area:.2f} square feet")
+            print(f"Aspect Ratio: {aircraft.vertical_tail.geometry.aspect_ratio:.2f}")
+            print(f"Mean Chord: {aircraft.vertical_tail.geometry.mean_chord:.2f} feet")
+    
 
     print("\nAircraft Performance Analysis:")
     analysis = aircraft.analyze_performance()
@@ -676,12 +785,9 @@ if __name__ == "__main__":
         print(f"\n{category.capitalize()} Analysis:")
         for result, value in results.items():
             print(f"- {result}: {value}") 
-    """
-    # Create a 3D view
-    fig, ax = aircraft.plot_3d()
-    plt.show()
 
-    # Create three-view drawing of the wing only
+    # Create three-view drawing
     fig, (ax_top, ax_side, ax_front) = aircraft.plot_views()
-    #fig, ax_top = aircraft.plot_views()
-    plt.show()
+    plt.savefig('assets/large_passenger_aircraft.png')
+    #plt.show()
+    plt.close()

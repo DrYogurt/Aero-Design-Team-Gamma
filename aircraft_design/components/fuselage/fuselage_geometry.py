@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from aircraft_design.core.base import Component, Geometry
 from aircraft_design.core.plotting import Object3D, Shape3D, create_cylinder, create_ellipsoid, plot_3d_shape
+from aircraft_design.core.plotting import plot_orthographic_views
 
 class CrossSectionShape(Enum):
     CIRCULAR = "circular"
@@ -20,6 +21,7 @@ class CrossSection:
     width: float   # Maximum width in meters
     height: float  # Maximum height in meters
     shape: CrossSectionShape = CrossSectionShape.CIRCULAR
+    z_offset: float = 0.0  # Vertical offset from centerline in meters
     parameters: Dict[str, Any] = field(default_factory=dict)
 
     def calculate_area(self) -> float:
@@ -78,6 +80,16 @@ class FuselageGeometry(Geometry):
             'nose_fineness': 2.0,  # Length/diameter ratio for nose
             'tail_fineness': 3.0,  # Length/diameter ratio for tail
         })
+
+    @property
+    def wetted_area(self) -> float:
+        """Calculate the wetted surface area of the fuselage"""
+        return self.calculate_wetted_area()
+
+    @property
+    def volume(self) -> float:
+        """Calculate the total volume of the fuselage"""
+        return self.calculate_volume()
 
     def add_section(self, section: CrossSection) -> None:
         """Add a cross-section, maintaining station order"""
@@ -192,12 +204,12 @@ class FuselageGeometry(Geometry):
             if section.shape == CrossSectionShape.CIRCULAR:
                 radius = max(section.width, section.height) / 2
                 y = radius * np.cos(theta)  # y is right
-                z = radius * np.sin(theta)  # z is up
+                z = radius * np.sin(theta) + section.z_offset  # z is up, add offset
             else:  # Super-ellipse or rectangular
                 # Use super-ellipse equation for smooth transition
                 n = section.parameters.get('n', 2.5)  # Higher n makes it more rectangular
                 y = (section.width/2) * np.sign(np.cos(theta)) * np.abs(np.cos(theta))**(2/n)
-                z = (section.height/2) * np.sign(np.sin(theta)) * np.abs(np.sin(theta))**(2/n)
+                z = (section.height/2) * np.sign(np.sin(theta)) * np.abs(np.sin(theta))**(2/n) + section.z_offset
             
             # Create points for this cross-section
             x = np.zeros_like(y) + section.station  # x is forward
@@ -259,10 +271,23 @@ class FuselageGeometry(Geometry):
 if __name__ == "__main__":
     geom = FuselageGeometry()
     
-    # Add some cross-sections
-    geom.add_section(CrossSection(0.0, 0.5, 0.5))  # Nose
-    geom.add_section(CrossSection(5.0, 4.0, 4.0))  # Max section
-    geom.add_section(CrossSection(20.0, 2.0, 2.0)) # Tail
+    # Add cross-sections with varying vertical positions and smooth transitions
+    geom.add_section(CrossSection(0.0, 0.2, 0.2))   # Nose (lower)
+    geom.add_section(CrossSection(10.0, 2.0, 2.0, z_offset=0.2))   # Start of cockpit
+    geom.add_section(CrossSection(35.0, 20.0, 20.0, z_offset=0))   # Start of main cabin
+    geom.add_section(CrossSection(150.0, 20.0, 20.0, z_offset=0))   # Start of tail cabin
+    geom.add_section(CrossSection(170.0, 10.0, 10.0, z_offset=10))   # Tail (higher)
     
-    print(f"Fuselage volume: {geom.calculate_volume():.1f} ft^3")
-    print(f"Wetted area: {geom.calculate_wetted_area():.1f} ft^3")
+    print(f"Fuselage volume: {geom.calculate_volume():.1f} m^3")
+    print(f"Wetted area: {geom.calculate_wetted_area():.1f} m^2")
+    
+    # Create and plot the 3D object
+    obj = geom.create_object()
+    # plot the orthographic views
+    ax, fig = plot_orthographic_views(obj)
+    plt.show()
+    # plot the 3d views
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    plot_3d_shape(ax, obj)
+    plt.show()

@@ -174,7 +174,7 @@ class Component:
             parent_global.yaw + local_orient.yaw
         )
 
-    def plot(self, color: Optional[str] = None, colors_dict: Optional[Dict[str, str]] = None) -> Object3D:
+    def plot(self, color: Optional[str] = None, colors_dict: Optional[Dict[str, str]] = None, plot_children: bool = True) -> Object3D:
         """Create a 3D object representation of this component and all its children"""
         obj = Object3D()
         
@@ -201,15 +201,16 @@ class Component:
                 print(f"Warning: Failed to create object for {self.name}: {e}")
         
         # Add all children's objects
-        for child in self.children:
-            #print(f"Plotting child {child.name} of {self.name} at absolute position {self.get_global_position()}")
-            try:
-                child_obj = child.plot(color=color, colors_dict=colors_dict)
-                if child_obj is not None and child_obj.shapes:
-                    for shape in child_obj.shapes:
-                        obj.add_shape(shape)
-            except Exception as e:
-                print(f"Warning: Failed to plot child {child.name}: {e}")
+        if plot_children:
+            for child in self.children:
+                #print(f"Plotting child {child.name} of {self.name} at absolute position {self.get_global_position()}")
+                try:
+                    child_obj = child.plot(color=color, colors_dict=colors_dict)
+                    if child_obj is not None and child_obj.shapes:
+                        for shape in child_obj.shapes:
+                            obj.add_shape(shape)
+                except Exception as e:
+                    print(f"Warning: Failed to plot child {child.name}: {e}")
         
         return obj
 
