@@ -176,7 +176,7 @@ def lift_coefficient_zero(eta_t, at, St, S, it):
     CL_0 = -eta_t * at * (St/S) * it
     return CL_0
 
-def airplane_pitching_moment(h, h_nw, c, Lw, h_t, h, c, Lt, M_ac):
+def airplane_pitching_moment(h, h_nw, c, Lw, h_t, Lt, M_ac):
     """
     Calculate airplane pitching moment
     
@@ -225,9 +225,10 @@ def horizontal_tail_volume_ratio(St, lt, S, c):
     VH: Horizontal tail volume ratio
     """
     VH = (St * lt) / (S * c)
-    return VH
+    return VHq
 
-def moment_coefficient_formula(h, h_nw, CL_w, eta_t, VH, CL_t, CM_ac):
+
+def moment_coefficient_formula_tail(h, h_nw, CL_w, eta_t, VH, CL_t, CM_ac):
     """
     Calculate moment coefficient using horizontal tail volume ratio
     
@@ -243,10 +244,10 @@ def moment_coefficient_formula(h, h_nw, CL_w, eta_t, VH, CL_t, CM_ac):
     Returns:
     CM: Total moment coefficient
     """
-    CM = (h - h_nw) * CL_w - eta_t * VH * CL_t + CM_ac
-    return CM
+    CM_tail = (h - h_nw) * CL_w - eta_t * VH * CL_t + CM_ac
+    return CM_tail
 
-def moment_coefficient_alpha(h, h_nw, aw, h_t, h, eta_t, St, S, at, epsilon_alpha):
+def moment_coefficient_alpha(h, h_nw, aw, h_t, eta_t, St, S, at, epsilon_alpha):
     """
     Calculate rate of change of moment coefficient with angle of attack
     
@@ -824,11 +825,27 @@ def chord_distribution(y, b, c_0, lambda_ratio):
     
     return c
 
+def distance_AC_behind_quarter_chord(lambda_ratio, b, sweep_angle):
+    """
+    Calculate AC location as distance behind quarter-chord at root
+
+    Parameters:
+    lambda_ratio: Taper ratio
+    b: Wingspan
+    sweep_angle = Sweep Angle (Degrees)
+
+    Returns:
+    X_A_swept
+    """
+    X_A = ((1+2*lambda_ratio) / (1+lambda_ratio)) * (b/6) * np.tan(np.radians(sweep_angle))
+
+    return X_A
+
 #####################################################
 ### Swept Wing Functions ############################
 #####################################################
 
-def effective_moment_coefficient(M_0r, cos_sweep):
+def effective_moment_coefficient(M_0r, sweep_angle):
     """
     Calculate effective moment coefficient for swept wing
     
@@ -839,6 +856,7 @@ def effective_moment_coefficient(M_0r, cos_sweep):
     Returns:
     M_0: Effective moment coefficient
     """
+    cos_sweep = np.cos(np.radians(sweep_angle))
     M_0 = M_0r / cos_sweep
     return M_0
 
@@ -853,7 +871,7 @@ def wing_sweep_correction(X_A, sweep_angle):
     Returns:
     X_A_swept: Swept wing aerodynamic center
     """
-    X_A_swept = X_A * np.tan(sweep_angle)
+    X_A_swept = X_A * np.tan(np.radians(sweep_angle))
     return X_A_swept
 
 def aerodynamic_center_moment(q, S, c, CM_ac):
@@ -919,18 +937,18 @@ def longitudinal_stability_analysis(aircraft_params, flight_conditions):
     results: Dictionary of stability analysis results
     """
     # Extract aircraft parameters
-    S = aircraft_params['wing_area']
-    c = aircraft_params['mac']
-    St = aircraft_params['tail_area']
-    lt = aircraft_params['tail_arm']
-    h = aircraft_params['cg_position']
-    h_ac = aircraft_params['ac_position']
-    h_t = aircraft_params['tail_ac_position']
-    it = aircraft_params['tail_incidence']
-    eta_t = aircraft_params['tail_efficiency']
-    aw = aircraft_params['wing_lift_slope']
-    at = aircraft_params['tail_lift_slope']
-    CM_ac = aircraft_params['cm_ac']
+    S = aircraft_params.wing_area
+    c = aircraft_params.mac
+    St = aircraft_params.tail_area
+    lt = aircraft_params.tail_arm
+    h = aircraft_params.cg_position
+    h_ac = aircraft_params.ac_position
+    h_t = aircraft_params.tail_ac_position
+    it = aircraft_params.tail_incidence
+    eta_t = aircraft_params.tail_efficiency
+    aw = aircraft_params.wing_lift_slope
+    at = aircraft_params.tail_lift_slope
+    CM_ac = aircraft_params.cm_ac
     epsilon_0 = aircraft_params.get('epsilon_0', 0)
     d_epsilon_d_alpha = aircraft_params.get('d_epsilon_d_alpha', 0.4)  # Typical value
     
@@ -1367,7 +1385,7 @@ def analyze_aircraft_stability(aircraft_name, aircraft_params, flight_conditions
 
 # Additional utility functions for complete aircraft analysis
 
-def finite_wing_correction(a_0, AR, sweep_angle=0, k=0.9):
+def finite_wing_correction(a_0, AR, sweep_angle=0, k_e=0.9):
     """
     Calculate finite wing lift curve slope from section lift curve slope
     
@@ -1375,7 +1393,7 @@ def finite_wing_correction(a_0, AR, sweep_angle=0, k=0.9):
     a_0: Section lift curve slope (typically 2π)
     AR: Aspect ratio
     sweep_angle: Wing sweep angle (radians)
-    k: Empirical factor (typically 0.9)
+    k_e: Empirical factor (typically 0.9)
     
     Returns:
     a: Finite wing lift curve slope
@@ -1384,7 +1402,7 @@ def finite_wing_correction(a_0, AR, sweep_angle=0, k=0.9):
     AR_eff = AR * np.cos(sweep_angle)
     
     # Finite wing correction
-    a = a_0 / (1 + a_0/(np.pi * AR_eff * k))
+    a = a_0 / (1 + a_0/(np.pi * AR_eff * k_e))
     
     return a
 
@@ -1401,14 +1419,14 @@ def downwash_gradient(AR, sweep_angle=0, k_e=0.3):
     d_epsilon_d_alpha: Downwash gradient
     """
     # Corrected for sweep
-    AR_eff = AR * np.cos(sweep_angle)
+    AR_eff = AR * np.cos(np.radians(sweep_angle))
     
     # Calculate downwash gradient
     d_epsilon_d_alpha = k_e * (2 / (2 + AR_eff))
     
     return d_epsilon_d_alpha
 
-def dynamic_pressure_ratio(x_t, wing_height, h_t):
+def dynamic_presure_ratio(x_t, wing_height, h_t):
     """
     Calculate dynamic pressure ratio at the tail
     
@@ -1447,3 +1465,85 @@ def calculate_control_surface_effectiveness(cf_c, seal_type="sealed"):
         tau = 0.8 - 0.7 * (1 - cf_c)
     
     return tau
+
+aircraft_params = dict(
+    # Linear dimensions given in Feet
+    wing_area = 9360,
+    wingspan = 315,
+    #aspect_ratio = aspect_ratio(wingspan, wing_area),
+    root_chord = 49.53,
+    tip_chord = 9.91,
+    #lambda_ratio = taper_ratio(tip_chord, root_chord),
+    #taper_ratio = lambda_ratio,
+    sweep_angle = 33, # Degrees
+    #mac = mean_aerodynamic_chord(root_chord,lambda_ratio),
+    tail_area = 9360.8, 
+    #tail_arm = , # Definition
+    #cg_position = , # User-defined
+    #ac_position = , # Definition
+    #tail_ac_position = ,
+    #initial_tail_incidence = , # Default 0
+    #tail_incidence = ,
+    #tail_efficiency = ,
+    #wing_lift_slope = .33, 
+    #tail_lift_slope = 0.18,
+    #cm_ac = ,
+    #d_epsilon_d_alpha = , # Necessary to split for htail & wing
+    #section_lift_slope = ,
+    #aileron_effectiveness = ,
+    #aileron_efficiency = ,
+    #aileron_inner_location = ,
+    #aileron_outer_location = ,
+    #vertical_tail_area = 1861,
+    #vertical_tail_arm = ,
+    #vertical_tail_efficiency = ,
+    #vertical_tail_lift_slope = 0.11,
+    #epsilon_0 = ,
+    #max_rudder_deflection = 25, # Degrees
+)
+
+class Aircraft_params:
+    def __init__(self, wing_area, wingspan, root_chord, tip_chord, tail_area, tail_arm, cg_position, sweep_angle):
+        self.wing_area = wing_area
+        self.wingspan = wingspan
+        self.root_chord = root_chord
+        self.tip_chord = tip_chord
+        self.tail_area = tail_area
+        self.lambda_ratio = taper_ratio(tip_chord, root_chord)
+        self.aspect_ratio = aspect_ratio(wingspan, wing_area)
+        self.lambda_ratio = taper_ratio(tip_chord, root_chord)
+        self.mac = mean_aerodynamic_chord(root_chord, self.lambda_ratio)
+        self.tail_arm = tail_arm
+        self.cg_position = cg_position
+        self.sweep_angle = sweep_angle
+        self.ac_position = (0.25*root_chord + distance_AC_behind_quarter_chord(self.lambda_ratio, self.wingspan, self.sweep_angle)) / self.mac # Defines Hac, distance of AC behind LE of MAC
+        
+        
+        
+aircraft_params = Aircraft_params(
+    wing_area = 9360,
+    wingspan = 315,
+    root_chord = 49.53,
+    tip_chord = 9.91,
+    tail_area = 2239,
+    tail_arm = None, # Distance Tail-to-CG, design-defined
+    cg_position = None, # Design-defined
+    sweep_angle = 34, # Degrees
+    
+    
+)
+
+
+flight_conditions = dict(
+    airspeed = .9 * 968.7,
+    density = 0.0007103,
+    alpha = 3,
+    sideslip = 0,
+)
+    
+
+if __name__ == "__main__":
+
+
+    print(longitudinal_stability_analysis(aircraft_params,flight_conditions))
+    print("yay")
