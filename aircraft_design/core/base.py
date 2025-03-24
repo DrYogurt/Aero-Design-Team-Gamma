@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from aircraft_design.core.plotting import Object3D
+import warnings
 
 @dataclass
 class Position:
@@ -41,7 +42,7 @@ class Geometry(ABC):
         """Plot the geometry using its 3D object representation"""
         from aircraft_design.core.plotting import plot_3d_object
         obj = self.create_object()
-        plot_3d_object(ax, obj, color, alpha)
+        plot_3d_object(ax, obj, self.color, alpha)
 
 class AnalysisModule(ABC):
     """Base class for all analysis modules"""
@@ -79,12 +80,14 @@ class Feature(ABC):
 
 class Component:
     """Base class for all aircraft components"""
-    def __init__(self, name: str):
+    def __init__(self, name: str, color: str = 'blue'):
         self.name = name
+        self.color = color
         self.geometry: Optional[Geometry] = None
         self.children: List[Component] = []
         self.features: List[Feature] = []
         self.analyses: Dict[str, AnalysisModule] = {}
+        self.analysis_results: Dict[str, Dict] = {}
         self.parent: Optional[Component] = None
 
     def add_child(self, component: 'Component') -> None:
@@ -174,7 +177,7 @@ class Component:
             parent_global.yaw + local_orient.yaw
         )
 
-    def plot(self, color: Optional[str] = None, colors_dict: Optional[Dict[str, str]] = None, plot_children: bool = True) -> Object3D:
+    def plot(self, colors_dict: Optional[Dict[str, str]] = None, plot_children: bool = True) -> Object3D:
         """Create a 3D object representation of this component and all its children"""
         obj = Object3D()
         
@@ -188,11 +191,10 @@ class Component:
                     if np.any(total_position != 0):
                         component_obj.apply_position(total_position)
                     
-                    # Set color in metadata if provided
-                    component_color = colors_dict.get(self.name, color) if colors_dict else color
-                    if component_color:
-                        for shape in component_obj.shapes:
-                            shape.metadata['color'] = component_color
+                    # Set color in metadata using self.color or from colors_dict if provided
+                    component_color = colors_dict.get(self.name, self.color) if colors_dict else self.color
+                    for shape in component_obj.shapes:
+                        shape.metadata['color'] = component_color
                     
                     # Add shapes to combined object
                     for shape in component_obj.shapes:
@@ -203,9 +205,8 @@ class Component:
         # Add all children's objects
         if plot_children:
             for child in self.children:
-                #print(f"Plotting child {child.name} of {self.name} at absolute position {self.get_global_position()}")
                 try:
-                    child_obj = child.plot(color=color, colors_dict=colors_dict)
+                    child_obj = child.plot(colors_dict=colors_dict)
                     if child_obj is not None and child_obj.shapes:
                         for shape in child_obj.shapes:
                             obj.add_shape(shape)
@@ -214,25 +215,44 @@ class Component:
         
         return obj
 
-    def run_analysis(self, analysis_name: str) -> Dict[str, Any]:
+    def run_analysis(self, analysis_names: Union[str, List[str]] = "all",
+                analyze_children: bool = False):
         """Run a specific analysis"""
-        if analysis_name not in self.analyses:
-            raise ValueError(f"No analysis module named {analysis_name}")
+        if analyze_children:
+            for child in self.children:
+                child.run_analysis(analysis_names=analysis_names,analyze_children=True)
+        if analysis_names == "all":
+            analyses_to_run = list(self.analyses.keys())
+        elif isinstance(analysis_names, str): # if the user only puts in one analysis
+            analyses_to_run = [analysis_names]
+        else:
+            analyses_to_run = analysis_names
         
-        analysis = self.analyses[analysis_name]
-        
-        # Validate analysis parameters
-        if not analysis.validate_parameters():
-            raise ValueError(f"Analysis {analysis_name} is missing required parameters")
-        
-        # Apply feature modifications
-        for feature in self.features:
-            if feature.validate():
-                feature.modify_analysis(analysis, self)
-        
-        # Run the analysis
-        results = analysis.run(self)
-        return results
+
+        for analysis_name in analyses_to_run:
+            if analysis_name not in self.analyses:
+                warnings.warn("Warning: No analysis module named {analysis_name} for component {self.name}")
+                continue
+            analysis = self.analyses[analysis_name]
+            
+            # Validate the parameters
+            if not analysis.validate_parameters():
+                warnings.warn(f"Warning: Analysis {analysis_name} is missing required parameters")
+                continue
+            
+
+            # Apply the modifications from features
+            for feature in self.features:
+                if feature.validate():
+                    feature.modify_analysis(analysis,self)
+
+            try:
+                component_result = analysis.run(self)
+            except Exception as e:
+                print(f"Error running analysis {analysis_name} on component {self.name}: {e}")
+                component_result = {"error": str(e)}
+
+            self.analysis_results[analysis_name] = component_result
 
     def validate(self) -> bool:
         """Validate the component configuration"""
