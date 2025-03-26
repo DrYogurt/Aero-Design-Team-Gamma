@@ -11,10 +11,10 @@ class EconomySection(SeatingSection):
     
     # Standard economy class measurements (in ft)
     SEAT_WIDTH = 18/12  # 18 inches
-    SEAT_DEPTH = 26/12  # 26 inches
     SEAT_HEIGHT = 39/12  # 39 inches
     SEAT_SPACING = 31/12  # 31 inches (center-to-center distance)
     AISLE_WIDTH = 20/12  # 20 inches
+    SEAT_DEPTH = 18/12  # 18 inches
 
     def __init__(self, name: str, seat_groups: List[int], num_rows: int = 1):
         """

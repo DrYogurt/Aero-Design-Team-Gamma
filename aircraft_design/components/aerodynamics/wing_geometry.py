@@ -263,7 +263,7 @@ class WaypointWingGeometry(AerodynamicGeometry):
             return super().create_object()
             
         half_span = self.parameters['span'] / 2
-        sweep_rad = np.radians(self.parameters['sweep'])
+        sweep_rad = np.radians(self.parameters['le_sweep'])
         dihedral_rad = np.radians(self.parameters['dihedral'])
         
         # Create wing sections between each pair of waypoints
@@ -516,7 +516,7 @@ class SimpleSweptWing(WaypointWingGeometry):
         super().__init__(waypoints)
         self.parameters.update({
             'span': span,
-            'sweep': sweep,
+            'le_sweep': sweep,
             'dihedral': dihedral
         })
 
