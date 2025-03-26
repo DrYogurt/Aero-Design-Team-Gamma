@@ -6,15 +6,14 @@ span = 315;             // Wing span in mm
 tube_radius = 1;        // Radius of the quarter chord tube
 num_sections = 500;      // Number of sections to create the wing
 sweepback_angle = 32.5; // Sweepback angle in degrees
-dihedral_angle = 5;     // Dihedral angle in degrees
-show_quarter_chord = true; // Set to false to hide the quarter chord line
+dihedral_angle = 4;     // Dihedral angle in degrees
+show_quarter_chord = false; // Set to false to hide the quarter chord line
 
 // Winglet parameters
 winglet_start = 5;     // Distance from tip where winglet begins
 winglet_angle = 60;     // Angle between winglet and main wing (degrees)
-winglet_curvature = -.8
-
-;// How curved the winglet is (0=straight, 1=very curved)
+winglet_curvature = -.8; // How curved the winglet is (0=straight, 1=very curved)
+one_wing = true;// whether to generate both or one wing (for use in simulations)
 
 
 // Function for quarter chord point location [x, y, z] based on span position (y)
@@ -306,11 +305,15 @@ module quarter_chord_line() {
 
 // Generate the wing by creating airfoil sections
 module wing() {
+    // Define the span range based on the one_wing flag
+    y_start = one_wing ? 0 : -span/2;
+    y_end = span/2;
+    
     // Create several cross-sections along the span
     for (i = [0:num_sections-2]) {
         // Calculate the span positions for this segment
-        y1 = -span/2 + i * span / (num_sections-1);
-        y2 = -span/2 + (i+1) * span / (num_sections-1);
+        y1 = y_start + i * (y_end - y_start) / (num_sections-1);
+        y2 = y_start + (i+1) * (y_end - y_start) / (num_sections-1);
         
         // Get the quarter chord points and chord lengths at these positions
         qc1 = quarter_chord_location(y1);
