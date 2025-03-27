@@ -968,6 +968,7 @@ def longitudinal_stability_analysis(aircraft_params, flight_conditions):
     aw = aircraft_params['wing_lift_slope']
     at = aircraft_params['tail_lift_slope']
     CM_ac = aircraft_params['cm_ac']
+    alpha_L0 = aircraft_params['zero_lift_angle']
     epsilon_0 = aircraft_params.get('epsilon_0', 0)
     d_epsilon_d_alpha = aircraft_params.get('d_epsilon_d_alpha', 0.4)  # Typical value
     
@@ -989,12 +990,12 @@ def longitudinal_stability_analysis(aircraft_params, flight_conditions):
     alpha_t = tail_angle_of_attack(alpha, it, epsilon)
     
     # Calculate lift components
-    CL_wb = wing_body_lift_coefficient(alpha, 0, aw)  # Assuming zero-lift alpha is 0
+    CL_wb = wing_body_lift_coefficient(alpha, alpha_L0, aw)
     L_wing = q * S * CL_wb
     L_tail = tail_lift(q, St, at, alpha_t, eta_t)
     
     # Calculate total lift coefficient
-    CL_total = lift_coefficient_alpha(aw, eta_t, at, St, S, d_epsilon_d_alpha) * alpha + \
+    CL_total = lift_coefficient_alpha(aw, eta_t, at, St, S, d_epsilon_d_alpha) * (alpha - alpha_L0) + \
                lift_coefficient_zero(eta_t, at, St, S, it)
     
     # Calculate pitching moment components
@@ -1019,7 +1020,7 @@ def longitudinal_stability_analysis(aircraft_params, flight_conditions):
     
     # Calculate trim angle of attack
     CM_0 = moment_coefficient_zero(h_t, h, eta_t, St, S, at, it, CM_ac)
-    alpha_trim = trim_angle_from_cm(CM_0, CM_alpha)
+    alpha_trim = trim_angle_from_cm(CM_0, CM_alpha) + alpha_L0  # Add zero lift angle to get absolute trim angle
     
     # Prepare results
     results = {
@@ -1415,10 +1416,10 @@ def finite_wing_correction(a_0, AR, sweep_angle=0, k_e=0.9):
     a: Finite wing lift curve slope
     """
     # Corrected for sweep
-    AR_eff = AR * np.cos(sweep_angle)
+    #`AR_eff = AR * np.cos(sweep_angle)
     
     # Finite wing correction
-    a = a_0 / (1 + a_0/(np.pi * AR_eff * k_e))
+    a = a_0 / (1 + a_0/(np.pi * AR * k_e))
     
     return a
 
@@ -1756,6 +1757,7 @@ if __name__ == "__main__":
         
         # Basic aerodynamic parameters
         'section_lift_slope': 2*np.pi,  # 2π per radian (theoretical)
+        'zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
         
         # Efficiency factors
         'tail_efficiency': 0.95,    # Horizontal tail efficiency factor

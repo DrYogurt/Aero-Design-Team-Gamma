@@ -26,6 +26,7 @@
         "ac_position": 0.43328999552168834,
         "htail_ac_position": 0.65,
         "section_lift_slope": 6.283185307179586,
+        "zero_lift_angle": -0.08726646259971647,
         "tail_efficiency": 0.9816843611112658,
         "vertical_tail_efficiency": 0.95,
         "aileron_inner_location": 0.5,
@@ -54,12 +55,12 @@
     },
     "raw_analysis_results": {
         "longitudinal_stability_analysis": {
-            "CL": 0.28544438203082767,
-            "CM": -0.1552381988763162,
+            "CL": 0.79898969245472,
+            "CM": -0.2383218156432542,
             "CM_alpha": -1.2282557477762035,
             "h_n": 0.4587168008363768,
             "static_margin": 0.20871680083637678,
-            "alpha_trim": -0.07402927157086213,
+            "alpha_trim": -0.1612957341705786,
             "VH": 0.5237987656351174
         },
         "directional_stability_analysis": {
@@ -93,12 +94,12 @@
     "comprehensive_stability_results": {
         "aircraft_name": "optimized",
         "longitudinal_stability": {
-            "CL": 0.28544438203082767,
-            "CM": -0.1552381988763162,
+            "CL": 0.79898969245472,
+            "CM": -0.2383218156432542,
             "CM_alpha": -1.2282557477762035,
             "h_n": 0.4587168008363768,
             "static_margin": 0.20871680083637678,
-            "alpha_trim": -0.07402927157086213,
+            "alpha_trim": -0.1612957341705786,
             "VH": 0.5237987656351174
         },
         "directional_stability": {
