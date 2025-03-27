@@ -1,0 +1,20 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+
+  "version": "0.1",
+  "configurations": [
+    
+    {
+      "name": "Python: Poetry",
+      "type": "python",
+      "request": "launch",
+      "python": "/home/dryogurt/.cache/pypoetry/virtualenvs/aerospace-design-team-gamma-QogS2DLM-py3.13/bin/python",
+      "module": "aircraft_design.examples.blended_wing",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

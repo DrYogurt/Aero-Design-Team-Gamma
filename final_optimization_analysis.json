@@ -1,0 +1,140 @@
+{
+    "optimization_result": {
+        "success": true,
+        "message": "Optimization terminated successfully.",
+        "iterations": 163,
+        "final_cost": 0.001370778389040189,
+        "optimal_design_variables": {
+            "wing_position": 0.43328999552168834,
+            "tail_incidence": 0.031287068269938365,
+            "horizontal_tail_volume_ratio": 0.5237987656351173,
+            "vertical_tail_volume_ratio": 0.3584961099515231,
+            "horizontal_tail_arm": 125.70762185865777,
+            "vertical_tail_arm": 171.7734006379606
+        }
+    },
+    "final_parameters": {
+        "wing_area": 9360,
+        "wingspan": 315,
+        "root_chord": 49.53,
+        "taper_ratio": 0.20008075913587725,
+        "htail_area": 1330.7809934646696,
+        "htail_arm": 125.70762185865777,
+        "vertical_tail_area": 6153.39701406298,
+        "vertical_tail_arm": 171.7734006379606,
+        "cg_position": 0.25,
+        "ac_position": 0.43328999552168834,
+        "htail_ac_position": 0.65,
+        "section_lift_slope": 6.283185307179586,
+        "zero_lift_angle": -0.08726646259971647,
+        "tail_efficiency": 0.9816843611112658,
+        "vertical_tail_efficiency": 0.95,
+        "aileron_inner_location": 0.5,
+        "aileron_outer_location": 0.9,
+        "max_rudder_deflection": 0.4363323129985824,
+        "max_thrust": 25000,
+        "engine_offset": 53,
+        "tail_incidence": 0.031287068269938365,
+        "aircraft_weight": 1585000.0,
+        "mac": 34.12148160610138,
+        "aspect_ratio": 10.600961538461538,
+        "wing_lift_slope": 5.194326699478395,
+        "tail_lift_slope": 5.194326699478395,
+        "vertical_tail_aspect_ratio": 4.000000000000001,
+        "vertical_tail_lift_slope": 4.039190554615449,
+        "d_epsilon_d_alpha": 0.04761541396413583,
+        "aileron_effectiveness": 0.3999999999999999,
+        "cm_ac": -0.1,
+        "d_epsilon_d_beta": 0.1
+    },
+    "flight_conditions": {
+        "airspeed": 871.83,
+        "density": 0.0007103,
+        "alpha": 0.05235987755982989,
+        "sideslip": 0
+    },
+    "raw_analysis_results": {
+        "longitudinal_stability_analysis": {
+            "CL": 0.79898969245472,
+            "CM": -0.2383218156432542,
+            "CM_alpha": -1.2282557477762035,
+            "h_n": 0.4587168008363768,
+            "static_margin": 0.20871680083637678,
+            "alpha_trim": -0.1612957341705786,
+            "VH": 0.5237987656351174
+        },
+        "directional_stability_analysis": {
+            "CN_beta": 1.8832406357756415,
+            "V_v": 0.3584961099515231,
+            "weathercock_stability": true
+        },
+        "lateral_control_analysis": {
+            "Cl_delta_a": NaN,
+            "Cl_p": -0.0016986060465840414,
+            "steady_roll_rate": NaN,
+            "roll_performance": false
+        },
+        "trim_and_control_analysis": {
+            "h_n": 0.4587168008363768,
+            "static_margin": 0.20871680083637678,
+            "alpha_trim_1": 0.05235987755982989,
+            "alpha_trim_2": 0.05235987755982989,
+            "tail_incidence_1": 0.031287068269938365,
+            "tail_incidence_2": 0.031287068269938365,
+            "delta_tail_incidence": 0.0
+        },
+        "engine_out_analysis": {
+            "engine_out_yaw_moment": 1325000,
+            "CN_delta_r": -0.825379437674067,
+            "required_rudder_deflection": -0.0020169744326973865,
+            "rudder_sufficient": true,
+            "rudder_margin": 99.53774351048258
+        }
+    },
+    "comprehensive_stability_results": {
+        "aircraft_name": "optimized",
+        "longitudinal_stability": {
+            "CL": 0.79898969245472,
+            "CM": -0.2383218156432542,
+            "CM_alpha": -1.2282557477762035,
+            "h_n": 0.4587168008363768,
+            "static_margin": 0.20871680083637678,
+            "alpha_trim": -0.1612957341705786,
+            "VH": 0.5237987656351174
+        },
+        "directional_stability": {
+            "CN_beta": 1.8832406357756415,
+            "V_v": 0.3584961099515231,
+            "weathercock_stability": true
+        },
+        "lateral_control": {
+            "Cl_delta_a": -0.0053286244624349945,
+            "Cl_p": -0.0016986060465840414,
+            "steady_roll_rate": -6.06151330497734,
+            "roll_performance": true
+        },
+        "engine_out": {
+            "engine_out_yaw_moment": 1325000,
+            "CN_delta_r": -0.825379437674067,
+            "required_rudder_deflection": -0.0020169744326973865,
+            "rudder_sufficient": true,
+            "rudder_margin": 99.53774351048258
+        },
+        "trim_control": {
+            "h_n": 0.4587168008363768,
+            "static_margin": 0.20871680083637678,
+            "alpha_trim_1": 0.05235987755982989,
+            "alpha_trim_2": 0.030982176070905254,
+            "tail_incidence_1": 0.031287068269938365,
+            "tail_incidence_2": -0.018841504859053365,
+            "delta_tail_incidence": -0.05012857312899173
+        },
+        "stability_assessment": {
+            "longitudinally_stable": true,
+            "directionally_stable": true,
+            "sufficient_roll_control": true,
+            "sufficient_rudder_control": true
+        },
+        "overall_stable": true
+    }
+}
