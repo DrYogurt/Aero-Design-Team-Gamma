@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from aircraft_design.components.fuselage.fuselage_geometry import FuselageGeometry, CrossSection, CrossSectionShape
 from aircraft_design.components.aerodynamics.basic_aero import AerodynamicComponent
-from aircraft_design.components.interior.blended_wing_cabin import SingleFloorCabin, EconomyBlock, Galley, Bathroom
+from aircraft_design.components.interior.cabin import SingleFloorCabin, EconomyBlock, Galley, Bathroom
 from aircraft_design.core.plotting import Object3D, plot_orthographic_views, plot_cross_section
 # Import additional required modules
 from aircraft_design.components.aerodynamics.wing_geometry import WaypointWingGeometry, TailGeometry, SimpleSweptWing

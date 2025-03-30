@@ -373,3 +373,175 @@ def plot_cross_section(obj: Object3D, plane: str = 'x', value: float = 0.0, heig
     ax.set_aspect('equal')
     
     return ax 
+
+def plot_top_view(obj: Object3D, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+    """Create top view (X-Y plane) orthographic projection of a 3D object
+    
+    Args:
+        obj: The 3D object to plot
+        fig: Optional figure to plot on. If None, creates a new figure
+        ax: Optional axes to plot on. If None, creates new axes
+        
+    Returns:
+        Tuple of (Figure, Axes)
+    """
+    if fig is None:
+        fig = plt.figure(figsize=(10, 8))
+    
+    if ax is None:
+        ax = fig.add_subplot(111)
+    
+    # Apply any global position offset
+    if np.any(obj.position != 0):
+        obj.apply_position(obj.position)
+    
+    # Sort shapes by their minimum z-coordinate (height) for bottom-to-top plotting
+    sorted_shapes = sorted(obj.shapes, key=lambda shape: np.min(shape.vertices[:, 2]))
+    
+    # Project vertices onto top plane (X-Y)
+    for shape in sorted_shapes:
+        vertices = shape.vertices
+        faces = shape.faces
+        color = shape.metadata.get('color', 'blue')  # Get color from metadata, default to blue
+        
+        # For each face, plot its projection on the top view
+        for face in faces:
+            face_vertices = vertices[face]
+            
+            # Top view (X-Y plane)
+            x_top = face_vertices[:, 0]
+            y_top = face_vertices[:, 1]
+            ax.fill(x_top, y_top, color=color, alpha=0.3)  # Fill face
+            ax.plot(x_top, y_top, color=color)  # Draw edges
+    
+    # Set labels and title
+    ax.set_xlabel('X (ft)')
+    ax.set_ylabel('Y (ft)')
+    ax.set_title('Top View')
+    
+    # Set equal aspect ratio
+    ax.set_aspect('equal')
+    ax.grid(True)
+    
+    return fig, ax
+
+def plot_side_view(obj: Object3D, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+    """Create side view (X-Z plane) orthographic projection of a 3D object
+    
+    Args:
+        obj: The 3D object to plot
+        fig: Optional figure to plot on. If None, creates a new figure
+        ax: Optional axes to plot on. If None, creates new axes
+        
+    Returns:
+        Tuple of (Figure, Axes)
+    """
+    if fig is None:
+        fig = plt.figure(figsize=(10, 8))
+    
+    if ax is None:
+        ax = fig.add_subplot(111)
+    
+    # Apply any global position offset
+    if np.any(obj.position != 0):
+        obj.apply_position(obj.position)
+    
+    # Sort shapes by their minimum y-coordinate for front-to-back plotting
+    sorted_shapes = sorted(obj.shapes, key=lambda shape: np.min(shape.vertices[:, 1]))
+    
+    # Project vertices onto side plane (X-Z)
+    for shape in sorted_shapes:
+        vertices = shape.vertices
+        faces = shape.faces
+        color = shape.metadata.get('color', 'blue')  # Get color from metadata, default to blue
+        
+        # For each face, plot its projection on the side view
+        for face in faces:
+            face_vertices = vertices[face]
+            
+            # Side view (X-Z plane)
+            x_side = face_vertices[:, 0]
+            z_side = face_vertices[:, 2]
+            ax.fill(x_side, z_side, color=color, alpha=0.3)  # Fill face
+            ax.plot(x_side, z_side, color=color)  # Draw edges
+    
+    # Set labels and title
+    ax.set_xlabel('X (ft)')
+    ax.set_ylabel('Z (ft)')
+    ax.set_title('Side View')
+    
+    # Set equal aspect ratio
+    ax.set_aspect('equal')
+    ax.grid(True)
+    
+    return fig, ax
+
+def plot_front_view(obj: Object3D, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+    """Create front view (Y-Z plane) orthographic projection of a 3D object
+    
+    Args:
+        obj: The 3D object to plot
+        fig: Optional figure to plot on. If None, creates a new figure
+        ax: Optional axes to plot on. If None, creates new axes
+        
+    Returns:
+        Tuple of (Figure, Axes)
+    """
+    if fig is None:
+        fig = plt.figure(figsize=(10, 8))
+    
+    if ax is None:
+        ax = fig.add_subplot(111)
+    
+    # Apply any global position offset
+    if np.any(obj.position != 0):
+        obj.apply_position(obj.position)
+    
+    # Sort shapes by their minimum x-coordinate for left-to-right plotting
+    sorted_shapes = sorted(obj.shapes, key=lambda shape: np.min(shape.vertices[:, 0]))
+    
+    # Project vertices onto front plane (Y-Z)
+    for shape in sorted_shapes:
+        vertices = shape.vertices
+        faces = shape.faces
+        color = shape.metadata.get('color', 'blue')  # Get color from metadata, default to blue
+        
+        # For each face, plot its projection on the front view
+        for face in faces:
+            face_vertices = vertices[face]
+            
+            # Front view (Y-Z plane)
+            y_front = face_vertices[:, 1]
+            z_front = face_vertices[:, 2]
+            ax.fill(y_front, z_front, color=color, alpha=0.3)  # Fill face
+            ax.plot(y_front, z_front, color=color)  # Draw edges
+    
+    # Set labels and title
+    ax.set_xlabel('Y (ft)')
+    ax.set_ylabel('Z (ft)')
+    ax.set_title('Front View')
+    
+    # Set equal aspect ratio
+    ax.set_aspect('equal')
+    ax.grid(True)
+    
+    return fig, ax 
+
+def plot_cg(ax: plt.Axes, cg_x: float, cg_y: float, marker='x', color='blue', markersize=12, label='CG'):
+    """Plot center of gravity marker on the given axes
+    
+    Args:
+        ax: The matplotlib axes to plot on
+        cg_x: X coordinate of CG
+        cg_y: Y coordinate of CG
+        marker: Marker style to use
+        color: Marker color
+        markersize: Size of marker
+        label: Label for the marker in legend
+    """
+    ax.plot(cg_x, cg_y, marker=marker, color=color, markersize=markersize, 
+            markeredgewidth=2, label=label)
+    
+    # Add a circle around the marker for better visibility
+    circle = plt.Circle((cg_x, cg_y), markersize/50, fill=False, color=color, linewidth=1.5)
+    ax.add_patch(circle) 

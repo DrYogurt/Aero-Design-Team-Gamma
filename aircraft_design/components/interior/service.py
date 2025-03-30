@@ -3,6 +3,7 @@ from typing import List, Optional
 import numpy as np
 from .base import InteriorComponent, InteriorGeometry
 from aircraft_design.core.plotting import Object3D, Shape3D, create_box
+from aircraft_design.analysis.mass_analysis import MassAnalysis, MassFeature
 
 @dataclass
 class ServiceGeometry(InteriorGeometry):
@@ -50,6 +51,26 @@ class Galley(ServiceArea):
             'depth': depth,
             'height': height
         })
+        
+        # Add mass analysis
+        self.add_analysis(MassAnalysis())
+        
+        # Add mass (~1000 lbs for galley with equipment)
+        mass = 1000
+        
+        # Calculate moments of inertia
+        ixx = (1/12) * mass * (height**2 + depth**2)
+        iyy = (1/12) * mass * (width**2 + height**2)
+        izz = (1/12) * mass * (width**2 + depth**2)
+        
+        # Add mass feature
+        mass_feature = MassFeature(
+            mass=mass,
+            center_of_gravity=[depth/2, width/2, height/2],
+            ixx=ixx, iyy=iyy, izz=izz,
+            ixy=0, ixz=0, iyz=0
+        )
+        self.add_feature(mass_feature)
 
     def plot(self, color: str = 'green') -> Object3D:
         return super().plot(color)
@@ -63,6 +84,60 @@ class Bathroom(ServiceArea):
             'depth': depth,
             'height': height
         })
+        
+        # Add mass analysis
+        self.add_analysis(MassAnalysis())
+        
+        # Add mass (~500 lbs for bathroom with fixtures)
+        mass = 500
+        
+        # Calculate moments of inertia
+        ixx = (1/12) * mass * (height**2 + depth**2)
+        iyy = (1/12) * mass * (width**2 + height**2)
+        izz = (1/12) * mass * (width**2 + depth**2)
+        
+        # Add mass feature
+        mass_feature = MassFeature(
+            mass=mass,
+            center_of_gravity=[depth/2, width/2, height/2],
+            ixx=ixx, iyy=iyy, izz=izz,
+            ixy=0, ixz=0, iyz=0
+        )
+        self.add_feature(mass_feature)
     
     def plot(self, color: str = 'purple') -> Object3D:
         return super().plot(color) 
+    
+
+class Stairs(ServiceArea):
+    """Aircraft stairs with standard dimensions"""
+    def __init__(self, name: str, width: float = 3.0, depth: float = 3.0, height: float = 7.0):
+        super().__init__(name)
+        self.geometry.parameters.update({
+            'width': width,
+            'depth': depth,
+            'height': height
+        })
+        
+        # Add mass analysis
+        self.add_analysis(MassAnalysis())
+        
+        # Add mass (~800 lbs for stairs structure)
+        mass = 800
+        
+        # Calculate moments of inertia
+        ixx = (1/12) * mass * (height**2 + depth**2)
+        iyy = (1/12) * mass * (width**2 + height**2)
+        izz = (1/12) * mass * (width**2 + depth**2)
+        
+        # Add mass feature
+        mass_feature = MassFeature(
+            mass=mass,
+            center_of_gravity=[depth/2, width/2, height/2],
+            ixx=ixx, iyy=iyy, izz=izz,
+            ixy=0, ixz=0, iyz=0
+        )
+        self.add_feature(mass_feature)
+    
+    def plot(self, color: str = 'orange') -> Object3D:
+        return super().plot(color)

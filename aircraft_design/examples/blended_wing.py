@@ -2,7 +2,7 @@ from typing import List, Tuple, Dict, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
-from aircraft_design.components.interior.blended_wing_cabin import SingleFloorCabin, EconomyBlock, Galley, Bathroom
+from aircraft_design.components.interior.cabin import SingleFloorCabin, EconomyBlock, Galley, Bathroom
 from aircraft_design.components.interior.base import InteriorComponent
 from aircraft_design.components.fuselage.fuselage_geometry import FuselageGeometry, CrossSection, CrossSectionShape
 from aircraft_design.components.aerodynamics.basic_aero import AerodynamicComponent
