@@ -1,11 +1,45 @@
 from typing import List, Dict, Any
-from aircraft_design.core.base import Component, Position
+from aircraft_design.core.base import Component, Position, Geometry
 from aircraft_design.analysis.mass_analysis import MassFeature, MassAnalysis
 from aircraft_design.components.aerodynamics.wing_geometry import WaypointWingGeometry
 from aircraft_design.components.aerodynamics.basic_aero import AerodynamicComponent
-from aircraft_design.core.plotting import plot_orthographic_views, create_box, Object3D, Shape3D
+from aircraft_design.core.plotting import plot_orthographic_views, create_box, Object3D
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+class FuelTankGeometry(Geometry):
+    """Geometry for a fuel tank"""
+    def __init__(self):
+        super().__init__()
+        self.parameters.update({
+            'length': 0.0,
+            'width': 0.0,
+            'front_height': 0.0,
+            'back_height': 0.0,
+            'fuel_density': 50.0,
+            'empty': False
+        })
+    def create_object(self) -> Object3D:
+        """Create a 3D object representation of this geometry"""
+        obj = Object3D()
+        
+        # Create a box shape for the tank
+        tank_shape = create_box(
+            width=self.parameters['width'],
+            length=self.parameters['length'],
+            height=self.parameters['front_height']
+        )
+        
+        obj.add_shape(tank_shape)
+
+        return obj
+    
+    def validate(self) -> bool:
+        """Validate the geometry parameters"""
+        return all(v > 0 for v in self.parameters.values())
+        
+    
 
 class FuelTank(Component):
     """A fuel tank component with trapezoidal volume and mass analysis"""
@@ -90,28 +124,17 @@ class FuelTank(Component):
     
     def plot(self) -> Object3D:
         """Create a 3D visualization of the fuel tank"""
-        # Create a box shape for the tank
-        # Use average height for visualization
-        avg_height = (self.front_height + self.back_height) / 2
-        tank_shape = create_box(
-            width=self.width,
-            length=self.length,
-            height=avg_height
-        )
+        tank_obj = self.geometry.create_object()
         
         # Set color based on empty state
-        tank_shape.metadata['color'] = 'red' if self.empty else 'green'
-        
-        # Create 3D object and add the shape
-        tank_obj = Object3D()
-        tank_obj.add_shape(tank_shape)
+        tank_obj.metadata['color'] = 'red' if self.empty else 'green'
         
         # Get the global position of the component
         global_pos = self.get_global_position()
         
         # Apply the global position to the tank shape vertices
-        tank_shape.vertices = tank_shape.vertices.astype(np.float64)
-        tank_shape.vertices += global_pos
+        tank_obj.vertices = tank_obj.vertices.astype(np.float64)
+        tank_obj.vertices += global_pos
         
         return tank_obj
 
@@ -166,6 +189,10 @@ class Wing(Component):
         
         # Add fuel tanks as child components
         self._add_fuel_tanks()
+
+        # Add mass
+        self._populate_mass_analysis()
+
     
     def _add_fuel_tanks(self):
         """Add four fuel tanks to the wing"""
@@ -189,7 +216,7 @@ class Wing(Component):
                     width=tank_width,
                     empty=False
                 )
-                
+                tank.geometry = FuelTankGeometry()
                 # Set tank name for identification
                 tank.name = f"fuel_tank_{side}_{position}"
                 
@@ -218,30 +245,76 @@ class Wing(Component):
                 
                 self.add_child(tank)
     
+
+    def _populate_mass_analysis(self):
+        # Values from solidworks: 3/30/2025
+        mass_lb = 28087.86
+        cg_x_in = 822.18
+        cg_y_in = 0.0  # Setting to 0.0 to ensure symmetry about the y-axis
+        cg_z_in = 0.01  # This was 47.06 but appears to have been swapped with y
+
+        # Fix the order of moments of inertia to match coordinate system
+        ixx_lb_in2 = 22241208042.76
+        iyy_lb_in2 = 25786865454.86  # This was incorrectly assigned to izz
+        izz_lb_in2 = 3654685797.90   # This was incorrectly assigned to iyy
+        ixy_lb_in2 = 0.0  # Setting to 0.0 for symmetric mass distribution
+        ixz_lb_in2 = 106736.46
+        iyz_lb_in2 = 0.0  # Setting to 0.0 for symmetric mass distribution
+
+        # Create the MassFeature
+        wing_box_mass_feature = MassFeature(
+            mass=mass_lb,
+            center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
+            ixx=ixx_lb_in2 / 144,
+            iyy=iyy_lb_in2 / 144,
+            izz=izz_lb_in2 / 144,
+            ixy=ixy_lb_in2 / 144,
+            ixz=ixz_lb_in2 / 144,
+            iyz=iyz_lb_in2 / 144
+        )
+
+        self.add_feature(wing_box_mass_feature)
+        self.add_analysis(MassAnalysis())
+
     @property
     def aspect_ratio(self) -> float:
         """Get the wing's aspect ratio"""
         return self.aero.geometry.aspect_ratio
     
-    def plot(self) -> Object3D:
-        """Create a 3D visualization of the wing with fuel tanks"""
+    def plot(self, *args, **kwargs) -> Object3D:
+        """Create a 3D visualization of the wing"""
         # Get the wing's aerodynamic visualization
         wing_obj = self.aero.plot()
-        wing_obj.metadata['color'] = 'blue'  # Set wing color
-        
-        # Add fuel tank visualizations
-        for tank in self.children:
-            if isinstance(tank, FuelTank):
-                tank_obj = tank.plot()
-                # Add tank shapes to the combined object
-                wing_obj.shapes.extend(tank_obj.shapes)
+        wing_obj.metadata['color'] = 'gray'  # Set wing color
         
         return wing_obj
+
+    def plot_section(self, *args, **kwargs) -> Object3D:
+        """Create a 3D visualization of the wing section"""
+        # Get the wing section's aerodynamic visualization
+        section_obj = self.aero.plot()
+        section_obj.metadata['color'] = 'gray'  # Set section color
+        
+        return section_obj
 
 if __name__ == "__main__":
     # Create a wing instance
     wing = Wing()
     
+    # run the mass analysis
+    wing.run_analysis(analysis_names="mass_analysis")
+
+    results = wing.analysis_results['mass_analysis']
+
+    print(f"\n=== Wing Properties ===")
+    print(f"Total Mass: {results['total_mass']:.1f} lbs")
+    print(f"CG Position: ({results['cg_x']:.2f}, {results['cg_y']:.2f}, {results['cg_z']:.2f}) ft")
+    print(f"Moments of Inertia:")
+    print(f"  Ixx: {results['total_ixx']:.0f} lbs-ft²")
+    print(f"  Iyy: {results['total_iyy']:.0f} lbs-ft²")
+    print(f"  Izz: {results['total_izz']:.0f} lbs-ft²")
+
+
     # Make one tank empty for visualization
     wing.children[0].set_empty(True)
     

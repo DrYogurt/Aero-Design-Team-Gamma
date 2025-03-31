@@ -101,15 +101,24 @@ class MassAnalysis(AnalysisModule):
         for child in component.children:
             if "mass_analysis" in child.analyses:
                 try:
-                    #child_results = child.run_analysis("mass_analysis")
+                    child.run_analysis("mass_analysis")
                     child_results = child.analyses["mass_analysis"].results
                     if child_results:  # Make sure we got valid results
                         child_mass = child_results["total_mass"]
                         
                         # Get the child component's position relative to this component
-                        rel_pos_x = child.geometry.position.x if hasattr(child.geometry, 'position') else 0
-                        rel_pos_y = child.geometry.position.y if hasattr(child.geometry, 'position') else 0
-                        rel_pos_z = child.geometry.position.z if hasattr(child.geometry, 'position') else 0
+                        if hasattr(child.geometry, 'position'):
+                            rel_pos_x = child.geometry.position.x
+                            rel_pos_y = child.geometry.position.y
+                            rel_pos_z = child.geometry.position.z
+                        elif hasattr(child, 'position'):
+                            rel_pos_x = child.position.x
+                            rel_pos_y = child.position.y
+                            rel_pos_z = child.position.z
+                        else:
+                            rel_pos_x = 0
+                            rel_pos_y = 0
+                            rel_pos_z = 0
                         
                         # Add the relative position to the child's CG to get absolute position
                         child_cg_x = child_results["cg_x"] + rel_pos_x

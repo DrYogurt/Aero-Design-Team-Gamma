@@ -1339,7 +1339,7 @@ def plot_stability_derivatives(aircraft_params, flight_conditions, alpha_range):
     return fig
 
 def analyze_aircraft_stability(aircraft_name, aircraft_params, flight_conditions):
-    """
+    """ 
     Perform a comprehensive stability and control analysis for an aircraft
     
     Parameters:
@@ -1416,7 +1416,7 @@ def finite_wing_correction(a_0, AR, sweep_angle=0, k_e=0.9):
     a: Finite wing lift curve slope
     """
     # Corrected for sweep
-    #`AR_eff = AR * np.cos(sweep_angle)
+    #AR_eff = AR * np.cos(sweep_angle)
     
     # Finite wing correction
     a = a_0 / (1 + a_0/(np.pi * AR * k_e))
@@ -1436,10 +1436,10 @@ def downwash_gradient(AR, sweep_angle=0, k_e=0.3):
     d_epsilon_d_alpha: Downwash gradient
     """
     # Corrected for sweep
-    AR_eff = AR * np.cos(np.radians(sweep_angle))
+    #AR_eff = AR * np.cos(np.radians(sweep_angle))
     
     # Calculate downwash gradient
-    d_epsilon_d_alpha = k_e * (2 / (2 + AR_eff))
+    d_epsilon_d_alpha = k_e * (2 / (2 + AR))
     
     return d_epsilon_d_alpha
 

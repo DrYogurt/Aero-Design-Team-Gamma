@@ -196,7 +196,7 @@ class ServiceComponent(InteriorComponent):
         self.sub_components.append(component)
         self.add_child(component)
         
-    def plot(self, color: str = 'lightgray', colors_dict: Dict[str, str] = None) -> Object3D:
+    def plot(self, color: str = 'lightgray', colors_dict: Dict[str, str] = None, plot_children: bool = True) -> Object3D:
         """Create a 3D visualization of the service area and its components"""
         obj = Object3D()
         
@@ -218,15 +218,15 @@ class ServiceComponent(InteriorComponent):
         obj.add_shape(service_box)
         
         # Plot all sub-components
-        for component in self.sub_components:
-            component_color = colors_dict.get(component.__class__.__name__.lower(), 'gray') if colors_dict else 'gray'
-            if hasattr(component, 'plot'):
-                if 'colors_dict' in component.plot.__code__.co_varnames:
-                    component_obj = component.plot(color=component_color, colors_dict=colors_dict)
-                else:
-                    component_obj = component.plot(color=component_color)
+        if plot_children:
+            for component in self.sub_components:
+                component_color = colors_dict.get(component.__class__.__name__.lower(), 'gray') if colors_dict else 'gray'
+                if hasattr(component, 'plot'):
+                    if 'colors_dict' in component.plot.__code__.co_varnames:
+                        component_obj = component.plot(color=component_color, colors_dict=colors_dict)
+                    else:
+                        component_obj = component.plot(color=component_color)
                 obj.shapes.extend(component_obj.shapes)
-        
         return obj
 
 class ExitRow(InteriorComponent):
@@ -409,7 +409,7 @@ class EconomyBlock(InteriorComponent):
         """Calculate total number of seats in the economy block"""
         return sum(section.num_seats for section in self.sections)
 
-    def plot(self, color: str = None, colors_dict: Dict[str, str] = None) -> Object3D:
+    def plot(self, *args, color: str = None, colors_dict: Dict[str, str] = None, **kwargs) -> Object3D:
         """Create a 3D visualization of the entire economy block"""
         obj = Object3D()
         

@@ -177,8 +177,15 @@ class Component:
             parent_global.yaw + local_orient.yaw
         )
 
-    def plot(self, colors_dict: Optional[Dict[str, str]] = None, plot_children: bool = True) -> Object3D:
-        """Create a 3D object representation of this component and all its children"""
+    def plot(self, *args, colors_dict: Optional[Dict[str, str]] = None, plot_children: bool = True, **kwargs) -> Object3D:
+        """Create a 3D object representation of this component and all its children
+        
+        Args:
+            *args: Additional positional arguments to pass to child plot methods
+            colors_dict: Dictionary mapping component names to colors
+            plot_children: Whether to plot child components
+            **kwargs: Additional keyword arguments to pass to child plot methods
+        """
         obj = Object3D()
         
         # Add this component's geometry if it exists
@@ -206,8 +213,13 @@ class Component:
         if plot_children:
             for child in self.children:
                 try:
-                    child_obj = child.plot(colors_dict=colors_dict)
+                    # Pass through all arguments to child's plot method
+                    child_obj = child.plot(*args, colors_dict=colors_dict, plot_children=True, **kwargs)
                     if child_obj is not None and child_obj.shapes:
+                        # Apply colors from colors_dict if provided
+                        if colors_dict and child.name in colors_dict:
+                            for shape in child_obj.shapes:
+                                shape.metadata['color'] = colors_dict[child.name]
                         for shape in child_obj.shapes:
                             obj.add_shape(shape)
                 except Exception as e:
