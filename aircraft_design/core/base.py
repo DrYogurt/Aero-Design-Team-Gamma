@@ -263,6 +263,8 @@ class Component:
             except Exception as e:
                 print(f"Error running analysis {analysis_name} on component {self.name}: {e}")
                 component_result = {"error": str(e)}
+                # throw an error
+                raise e
 
             self.analysis_results[analysis_name] = component_result
 

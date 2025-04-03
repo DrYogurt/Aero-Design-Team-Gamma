@@ -33,7 +33,7 @@ class Cabin(Component):
         self.cabin_interior.add_child(self.second_floor)
         
         # Set vertical position for second floor
-        self.second_floor.geometry.position.z = self.first_floor_height
+        self.second_floor.geometry.position.z += self.first_floor_height
         
         # Store properties and dimensions
         self._compute_dimensions()

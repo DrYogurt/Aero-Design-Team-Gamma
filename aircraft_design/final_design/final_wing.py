@@ -24,20 +24,25 @@ class FuelTankGeometry(Geometry):
         """Create a 3D object representation of this geometry"""
         obj = Object3D()
         
-        # Create a box shape for the tank
+        # Create a box shape for the tank using the average height
+        avg_height = (self.parameters['front_height'] + self.parameters['back_height']) / 2
         tank_shape = create_box(
             width=self.parameters['width'],
             length=self.parameters['length'],
-            height=self.parameters['front_height']
+            height=avg_height
         )
         
         obj.add_shape(tank_shape)
-
         return obj
     
     def validate(self) -> bool:
         """Validate the geometry parameters"""
-        return all(v > 0 for v in self.parameters.values())
+        return all(v >= 0 for v in [
+            self.parameters['length'],
+            self.parameters['width'],
+            self.parameters['front_height'],
+            self.parameters['back_height']
+        ])
         
     
 
@@ -95,6 +100,17 @@ class FuelTank(Component):
         
         # Add mass analysis
         self.add_analysis(MassAnalysis())
+        
+        # Create and configure geometry
+        self.geometry = FuelTankGeometry()
+        self.geometry.parameters.update({
+            'length': length,
+            'width': width,
+            'front_height': front_height,
+            'back_height': back_height,
+            'fuel_density': fuel_density,
+            'empty': empty
+        })
     
     def _calculate_ixx(self) -> float:
         """Calculate moment of inertia about x-axis"""
@@ -132,29 +148,34 @@ class FuelTank(Component):
         # Get the global position of the component
         global_pos = self.get_global_position()
         
-        # Apply the global position to the tank shape vertices
-        tank_obj.vertices = tank_obj.vertices.astype(np.float64)
-        tank_obj.vertices += global_pos
+        # Apply the global position to all shapes in the tank object
+        for shape in tank_obj.shapes:
+            shape.vertices = shape.vertices.astype(np.float64)
+            shape.vertices += global_pos
         
         return tank_obj
 
-class Wing(Component):
+class Wing(AerodynamicComponent):
     """Main wing component with integrated fuel tanks"""
     
     def __init__(self, 
                  nose_length: float = 20.0,
-                 tall_fuselage_length: float = 50.0):
+                 tall_fuselage_length: float = 50.0,
+                 fuel_configuration: str = "full"):
         """
         Initialize the main wing with integrated fuel tanks
         
         Args:
             nose_length: Length of the nose section in feet
             tall_fuselage_length: Length of the tall fuselage section in feet
+            fuel_configuration: Fuel configuration ("full", "empty", or "half")
         """
         super().__init__(name="main_wing")
         
+        # Store fuel configuration
+        self.fuel_configuration = fuel_configuration
+        
         # Create aerodynamic component for the wing
-        self.aero = AerodynamicComponent("main_wing")
         wing_geom = WaypointWingGeometry()
         
         # Set wing parameters
@@ -175,12 +196,12 @@ class Wing(Component):
         
         # Set wing position
         wing_position = Position(
-            x=nose_length + tall_fuselage_length,  # Position wing in the middle of the tall fuselage section
+            x=112,  # Position wing in the middle of the tall fuselage section
             y=0,
             z=0.14 * root_chord  # Align with the middle of the fuselage
         )
         wing_geom.position = wing_position
-        self.aero.geometry = wing_geom
+        self.geometry = wing_geom
         
         # Store properties for child positioning
         self.nose_length = nose_length
@@ -197,16 +218,23 @@ class Wing(Component):
     def _add_fuel_tanks(self):
         """Add four fuel tanks to the wing"""
         # Tank dimensions in feet
-        tank_length = 20.0
-        tank_width = 50.0
-        tank_front_height = 5.0
-        tank_back_height = 3.0
+        tank_length = 15.0  # Reduced from 20.0
+        tank_width = 30.0   # Reduced from 50.0
+        tank_front_height = 3.0  # Reduced from 5.0
+        tank_back_height = 2.0   # Reduced from 3.0
         
         # Wing position in feet
         wing_x = self.nose_length + self.tall_fuselage_length
         wing_z = 0.14 * self.root_chord
         
-        # Create four tanks (two on each side)
+        # Determine tank states based on configuration
+        is_empty = {
+            "full": False,
+            "empty": True,
+            "half": False  # We'll handle half differently
+        }[self.fuel_configuration]
+
+        tank_count = 0
         for side in ['left', 'right']:
             for position in ['front', 'back']:
                 tank = FuelTank(
@@ -214,14 +242,15 @@ class Wing(Component):
                     front_height=tank_front_height,
                     back_height=tank_back_height,
                     width=tank_width,
-                    empty=False
+                    empty=(is_empty or (self.fuel_configuration == "half" and tank_count >= 2))
                 )
+                tank_count += 1
                 tank.geometry = FuelTankGeometry()
                 # Set tank name for identification
                 tank.name = f"fuel_tank_{side}_{position}"
                 
                 # Position along wing span (y-axis)
-                y_offset = 50.0 if side == 'left' else -50.0  # 50 feet from centerline
+                y_offset = 30.0 if side == 'left' else -30.0  # Reduced from 50.0
                 
                 # Position along wing chord (x-axis)
                 # Position tanks at 25% and 60% of local chord
@@ -234,7 +263,7 @@ class Wing(Component):
                 x_with_sweep = x_offset + sweep_offset
                 
                 # Z-offset (height) - position tanks inside the wing
-                z_offset = wing_z - 1.0  # 1 foot below wing center
+                z_offset = wing_z - 0.5  # Reduced from 1.0 to bring tanks closer to wing center
                 
                 # Set position directly in feet
                 tank.geometry.position = Position(
@@ -245,6 +274,20 @@ class Wing(Component):
                 
                 self.add_child(tank)
     
+    def set_fuel_configuration(self, config: str):
+        """
+        Set the fuel configuration for all tanks
+        
+        Args:
+            config: One of "full", "empty", or "half"
+        """
+        self.fuel_configuration = config
+        tank_count = 0
+        for child in self.children:
+            if isinstance(child, FuelTank):
+                is_empty = (config == "empty" or (config == "half" and tank_count >= 2))
+                child.set_empty(is_empty)
+                tank_count += 1
 
     def _populate_mass_analysis(self):
         # Values from solidworks: 3/30/2025
@@ -279,27 +322,68 @@ class Wing(Component):
     @property
     def aspect_ratio(self) -> float:
         """Get the wing's aspect ratio"""
-        return self.aero.geometry.aspect_ratio
+        return self.geometry.aspect_ratio
     
     def plot(self, *args, **kwargs) -> Object3D:
         """Create a 3D visualization of the wing"""
         # Get the wing's aerodynamic visualization
-        wing_obj = self.aero.plot()
+        wing_obj = self.plot()
         wing_obj.metadata['color'] = 'gray'  # Set wing color
+        
+        # Plot all child components (fuel tanks)
+        for child in self.children:
+            if hasattr(child, 'plot'):
+                child_obj = child.plot()
+                # Add all shapes from the child object
+                for shape in child_obj.shapes:
+                    wing_obj.add_shape(shape)
         
         return wing_obj
 
     def plot_section(self, *args, **kwargs) -> Object3D:
         """Create a 3D visualization of the wing section"""
         # Get the wing section's aerodynamic visualization
-        section_obj = self.aero.plot()
+        section_obj = self.plot()
         section_obj.metadata['color'] = 'gray'  # Set section color
         
         return section_obj
 
+    @property
+    def wing_area(self) -> float:
+        """Get the wing's planform area in square feet"""
+        return self.geometry.area
+    
+    @property
+    def wing_span(self) -> float:
+        """Get the wing's span in feet"""
+        return self.geometry.parameters['span']
+    
+    @property
+    def mean_aerodynamic_chord(self) -> float:
+        """Get the wing's mean aerodynamic chord in feet"""
+        # For a linearly tapered wing
+        return (2/3) * self.root_chord * (1 + self.geometry.waypoints[-1].chord_length/self.root_chord + 
+                                         (self.geometry.waypoints[-1].chord_length/self.root_chord)**2) / (
+                                         1 + self.geometry.waypoints[-1].chord_length/self.root_chord)
+    
+    @property
+    def mass(self) -> float:
+        """Get the wing's mass in pounds"""
+        return self.features[0].parameters["mass"]
+
 if __name__ == "__main__":
     # Create a wing instance
     wing = Wing()
+    
+    # Print fuel tank information
+    print("\n=== Fuel Tank Information ===")
+    for tank in wing.children:
+        if isinstance(tank, FuelTank):
+            print(f"\nTank: {tank.name}")
+            print(f"Dimensions: {tank.length:.1f}ft x {tank.width:.1f}ft x {tank.front_height:.1f}ft (front) x {tank.back_height:.1f}ft (back)")
+            print(f"Volume: {tank.volume:.1f} ft³")
+            print(f"Position: ({tank.geometry.position.x:.1f}, {tank.geometry.position.y:.1f}, {tank.geometry.position.z:.1f})")
+            print(f"Empty: {tank.empty}")
     
     # run the mass analysis
     wing.run_analysis(analysis_names="mass_analysis")
@@ -314,12 +398,21 @@ if __name__ == "__main__":
     print(f"  Iyy: {results['total_iyy']:.0f} lbs-ft²")
     print(f"  Izz: {results['total_izz']:.0f} lbs-ft²")
 
+    # print the total fuel volume and mass
+    total_fuel_volume = 0.0
+    total_fuel_mass = 0.0
+    for tank in wing.children:
+        if isinstance(tank, FuelTank):
+            total_fuel_volume += tank.volume
+            total_fuel_mass += tank.fuel_mass
+    print(f"Total Fuel Volume: {total_fuel_volume:.0f} ft³")
+    print(f"Total Fuel Mass: {total_fuel_mass:.0f} lbs")
 
     # Make one tank empty for visualization
-    wing.children[0].set_empty(True)
+    #wing.children[0].set_empty(True)
     
     # Create the wing object for plotting (includes fuel tanks)
-    wing_obj = wing.plot()
+    wing_obj = wing.plot(plot_children=True)
     
     # Create figure and plot orthographic views
     fig = plt.figure(figsize=(15, 10))
@@ -330,7 +423,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig("wing_orthographic_views.png")
+    plt.savefig("assets/wing_orthographic_views.png")
     
     # Close the plot
     plt.close()

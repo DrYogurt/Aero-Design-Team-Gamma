@@ -91,8 +91,8 @@ class EconomySection(SeatingSection):
                     seat.row = row
                     seat.group = group_idx
                     
-                    # Add mass properties - typical economy seat ~35 lbs
-                    mass = 35  # lbs
+                    # Add mass properties - typical economy seat ~35 lbs and 205 lbs for passenger
+                    mass = 35 + 205  # lbs
                     
                     # Calculate moments of inertia for a rectangular prism
                     # I = (1/12) * mass * (dimension^2)

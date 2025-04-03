@@ -11,7 +11,6 @@ class EngineGeometry(Geometry):
         self.parameters.update({
             'radius': 0.0,
             'length': 0.0,
-            'bypass_ratio': 0.0,
             'thrust': 0.0
         })
         # Set default orientation for horizontal alignment
@@ -58,13 +57,22 @@ class EngineGeometry(Geometry):
         cylinder.vertices = cylinder.vertices @ Ry.T
         
         obj.add_shape(cylinder)
-        
-        # Apply position after creating the engine
+
         obj.position = np.array([self.position.x, self.position.y, self.position.z])
         
         return obj
+
 class Engine(Component):
     """Represents an aircraft engine"""
     def __init__(self, name: str):
         super().__init__(name)
         self.geometry = EngineGeometry() 
+    
+    def plot(self, *args, colors_dict=None, plot_children=True, **kwargs):
+        """Custom plot method for engines to ensure correct positioning"""
+        obj = super().plot(*args, colors_dict=colors_dict, plot_children=plot_children, **kwargs)
+        
+        # print the position of the engine
+        print(f"Engine position: {obj.position}")
+        return obj
+    
