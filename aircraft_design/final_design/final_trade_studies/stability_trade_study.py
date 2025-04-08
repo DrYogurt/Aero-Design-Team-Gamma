@@ -26,7 +26,7 @@ def optimize_margin(desired_margin, total_fuel_percentage, aircraft):
         aircraft_copy = copy.deepcopy(aircraft)
         
         # Calculate wing and tail fuel masses based on ratio and total fuel
-        total_fuel_mass = total_fuel_percentage * (5e5 + 2.5e5)  # Total fuel mass
+        total_fuel_mass = total_fuel_percentage * (5.9e5)
         wing_fuel_mass = total_fuel_mass / (1 + wing_to_tail_ratio)
         tail_fuel_mass = total_fuel_mass - wing_fuel_mass
         
@@ -66,12 +66,12 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     Creates both scatter and contour plots showing static margin vs fuel volume ratio and total fuel percentage.
     """
     # Define maximum fuel capacities
-    WING_MAX_FUEL = 5e5  # lbs
-    TAIL_MAX_FUEL = 2.5e5  # lbs
+    WING_MAX_FUEL = 4.83e5  # lbs
+    TAIL_MAX_FUEL = 1.12e5  # lbs
     
     # Create arrays for wing and tail fuel percentages
-    wing_fuel_percentages = np.linspace(0.01, 1.0, 30)  # Wing fuel as percentage of WING_MAX_FUEL
-    tail_fuel_percentages = np.linspace(0.01, 1.0, 20)  # Tail fuel as percentage of TAIL_MAX_FUEL
+    wing_fuel_percentages = np.linspace(0.01, 0.3, 10)  # Wing fuel as percentage of WING_MAX_FUEL
+    tail_fuel_percentages = np.linspace(0.01, 0.3, 5)  # Tail fuel as percentage of TAIL_MAX_FUEL
 
     # Initialize arrays for results
     static_margins = np.zeros((len(wing_fuel_percentages), len(tail_fuel_percentages)))
@@ -79,7 +79,7 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     wing_to_tail_ratios = np.zeros_like(static_margins)
     
     #set incidence angle to 1 degree
-    aircraft.horizontal_tail.geometry.orientation.pitch = np.radians(1)
+    aircraft.horizontal_tail.geometry.orientation.pitch = np.radians(.2)
     # Iterate through all combinations
     for i, wing_percent in enumerate(wing_fuel_percentages):
         for j, tail_percent in enumerate(tail_fuel_percentages):        
@@ -140,7 +140,7 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     cbar.set_label('Static Margin (% MAC)')
     
     # Calculate and plot optimal margin line
-    total_fuel_percentages_line = np.linspace(0.1, 1.0, 50)
+    total_fuel_percentages_line = np.linspace(0.1, .3, 10)
     optimal_ratios = []
     for fuel_percent in total_fuel_percentages_line:
         optimal_ratio = optimize_margin(0.2, fuel_percent, aircraft)
@@ -358,7 +358,7 @@ if __name__ == "__main__":
     aircraft = Aircraft()
     
     #fuel_distribution_stability_study(aircraft)
-
+    print("Fuel distribution stability study completed.")
     
     analyze_aircraft_static_stability(aircraft, "static_stability_analysis.json")
     print("Static stability analysis completed.")

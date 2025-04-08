@@ -54,14 +54,14 @@ class HorizontalTail(Component):
         self.geometry.orientation = Orientation(roll=0.0, pitch=1.95, yaw=0.0)  # 2 degrees initial pitch
         
         # Mass properties (simplified model - approximately 10% of wing mass)
-        self.mass = 11000 # ~40% of wing mass
+        self.mass = 25e3 # ~40% of wing mass
         self.features.append(MassFeature(self.mass, [position.x, position.y, position.z]))
         
         # Add analysis modules
         self.add_analysis(MassAnalysis())
 
         # Add fuel tank
-        tank_width = self.span * .5  # feet
+        tank_width = self.span * .8  # feet
         tank = FuelTank(
             length=self.root_chord * 0.5,  # 80% of root chord
             front_height=self.root_chord * 0.1,  # 10% of root chord
@@ -170,30 +170,12 @@ class VerticalTail(Component):
         
         self.geometry.position = self.position
         
-        self.mass = 7500 # ~25% of wing mass
+        self.mass = 20000 # ~25% of wing mass
         self.features.append(MassFeature(self.mass, [position.x, position.y, position.z]))
         
         # Add analysis modules
         self.add_analysis(MassAnalysis())
 
-        # Add tall, thin fuel tank
-        tank_width = self.root_chord * .1  # feet - relatively thin
-        tank = FuelTank(
-            length=self.root_chord * 0.7,  # 70% of root chord
-            front_height=self.height * 0.4,  # 80% of tail height - very tall
-            back_height=self.height * 0.4,  # 80% of tail height - very tall
-            width=5,
-            fill_level=1.0  # Full tank
-        )
-        tank.name = "vertical_tail_fuel_tank"
-        
-        # Position tank in the center of the tail
-        tank.geometry.position = Position(
-            x=position.x,
-            y=position.y,
-            z=position.z
-        )
-        self.add_child(tank)
 
         # Add control surfaces
         self._add_control_surfaces()
@@ -296,22 +278,21 @@ if __name__ == "__main__":
     print(f"Fuel Tank Volume: {horizontal_tail.children[0].volume:.1f} ft³")
     print(f"Fuel Tank Fill Level: {horizontal_tail.children[0].features[1].fill_level * 100:.1f}%")
 
+
     print("\n=== Vertical Tail Analysis ===")
     print(f"Tail Area: {vertical_tail.tail_area:.2f} ft²")
     print(f"Volume Ratio: {vertical_tail.volume_ratio:.2f}")
     print(f"Total Mass: {v_tail_results['total_mass']:.1f} lbs")
     print(f"CG Position: ({v_tail_results['cg_x']:.2f}, {v_tail_results['cg_y']:.2f}, {v_tail_results['cg_z']:.2f}) ft")
-    print(f"Fuel Tank Mass: {vertical_tail.children[0].full_mass * vertical_tail.children[0].features[1].fill_level:.1f} lbs")
-    print(f"Fuel Tank Volume: {vertical_tail.children[0].volume:.1f} ft³")
-    print(f"Fuel Tank Fill Level: {vertical_tail.children[0].features[1].fill_level * 100:.1f}%")
-
+    #print(f"Fuel Tank Mass: {vertical_tail.children[0].full_mass * vertical_tail.children[0].features[1].fill_level:.1f} lbs")
+    #print(f"Fuel Tank Volume: {vertical_tail.children[0].volume:.1f} ft³")
+    #print(f"Fuel Tank Fill Level: {vertical_tail.children[0].features[1].fill_level * 100:.1f}%")
+    
     # Calculate total fuel mass and volume
     h_tank = horizontal_tail.children[0]
-    v_tank = vertical_tail.children[0]
-    total_fuel_mass = (h_tank.full_mass * h_tank.features[1].fill_level + 
-                      v_tank.full_mass * v_tank.features[1].fill_level)
-    total_fuel_volume = h_tank.volume + v_tank.volume
-
+    #v_tank = vertical_tail.children[0]
+    total_fuel_mass = (h_tank.full_mass * h_tank.features[1].fill_level)
+    total_fuel_volume = h_tank.volume
     print("\n=== Total Fuel Analysis ===")
     print(f"Total Fuel Mass: {total_fuel_mass:.1f} lbs")
     print(f"Total Fuel Volume: {total_fuel_volume:.1f} ft³")

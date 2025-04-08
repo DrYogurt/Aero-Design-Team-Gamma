@@ -10,15 +10,15 @@
         "Lambda": 0.6981317007977318,
         "CD_0": 0.017,
         "htail_area": 2300.0,
-        "htail_arm": 75.6051475903916,
+        "htail_arm": 115.6051475903916,
         "vertical_tail_area": 1518.75,
-        "vertical_tail_arm": 70.6051475903916,
-        "vertical_tail_zv": 9.050958100069217,
+        "vertical_tail_arm": 110.6051475903916,
+        "vertical_tail_zv": 10.746101676015602,
         "vertical_tail_height": 50,
         "vertical_tail_chord": 45,
-        "cg_position": 1.7458216703786988,
+        "cg_position": 2.809619760029198,
         "ac_position": 1.8550118441499215,
-        "htail_ac_position": 2.5578913816565305,
+        "htail_ac_position": 3.7191817042371755,
         "htail_aspect_ratio": 4.3478260869565215,
         "section_lift_slope": 6.283185307179586,
         "zero_lift_angle": -0.08726646259971647,
@@ -31,8 +31,8 @@
         "rudder_effectiveness": 1,
         "max_thrust": 26710,
         "engine_offset": 105.0,
-        "tail_incidence": 0.00030461741978670857,
-        "aircraft_weight": 475614.5635020745,
+        "tail_incidence": 0.034033920413889425,
+        "aircraft_weight": 927073.2091652915,
         "airspeed": 1004.8050000000001,
         "density": 0.00237717,
         "alpha": 0.03490658503988659,
@@ -45,37 +45,40 @@
         "d_epsilon_d_beta": 0.0
     },
     "mass_properties": {
-        "total_mass": 814439.6255401255,
-        "cg_x": 235.9237587328469,
-        "cg_y": 12.926035326718841,
-        "cg_z": 21.9425087653852,
-        "total_ixx": 294939083.2452251,
-        "total_iyy": 4730505017.02021,
-        "total_izz": 4670588506.256574,
+        "total_mass": 1071690.558007251,
+        "cg_x": 211.94044754643696,
+        "cg_y": 11.65579420619479,
+        "cg_z": 15.982407591387231,
+        "total_ixx": 323891624.4744354,
+        "total_iyy": 4727174335.962201,
+        "total_izz": 4702546615.714264,
         "total_ixy": 400610.228125,
         "total_ixz": -59831082.699027784,
         "total_iyz": 69324.63986111112
     },
     "tail_volumes": {
-        "horizontal_tail_volume": 0.5342299215296488,
-        "vertical_tail_volume": 0.03602303448489367
+        "horizontal_tail_volume": 0.8168720106233508,
+        "vertical_tail_volume": 0.056431197750199794
     },
     "stability_analyses": {
         "longitudinal_stability": {
-            "CL_total": 0.7243805848598253,
-            "CM_total": -0.24469829580676628,
-            "CD_total": 0.04882721464011162,
+            "CL_total": 0.6922006810456283,
+            "CM_total": 0.44677731343176585,
+            "CD_total": 0.047413321546896287,
+            "CL_0": -0.03247052823862039,
             "CL_alpha": 5.931514546661292,
-            "CD_alpha": 0.260509296076483,
-            "CM_alpha": -1.1863034106076997,
-            "h_n": 1.9458217548892294,
-            "static_margin": 0.20000008451053053,
-            "alpha_trim": -0.17136298614967638,
-            "VH": 0.5342299215296488
+            "CD_0": 0.017,
+            "CD_alpha": 0.24893642365877786,
+            "CM_0": -0.07046604320582041,
+            "CM_alpha": 4.233694473787678,
+            "h_n": 2.0958569528266557,
+            "static_margin": -0.7137628072025421,
+            "alpha_trim": -0.07062236047045302,
+            "VH": 0.8168720106233508
         },
         "directional_stability": {
-            "CN_beta": 0.5619891486080975,
-            "V_v": 0.03602303448489367,
+            "CN_beta": 0.8803733841986348,
+            "V_v": 0.056431197750199794,
             "weathercock_stability": true
         },
         "lateral_control": {
@@ -85,20 +88,20 @@
             "roll_performance": false
         },
         "trim_and_control": {
-            "h_n": 1.9458217548892294,
-            "static_margin": 0.20000008451053053,
+            "h_n": 2.0958569528266557,
+            "static_margin": -0.7137628072025421,
             "alpha_trim_1": 0.03490658503988659,
             "alpha_trim_2": 0.03490658503988659,
-            "tail_incidence_1": 0.00030461741978670857,
-            "tail_incidence_2": 0.00030461741978670857,
-            "delta_tail_incidence": 0.0
+            "tail_incidence_1": 0.034033920413889425,
+            "tail_incidence_2": 0.034033920413889425,
+            "delta_tail_incidence": -0.0
         },
         "engine_out": {
             "engine_out_yaw_moment": 2804550.0,
-            "CN_delta_r": -0.09031968459772995,
-            "required_rudder_deflection": -0.008692497858155701,
+            "CN_delta_r": -0.141488579603352,
+            "required_rudder_deflection": -0.005548883642171118,
             "rudder_sufficient": true,
-            "rudder_margin": 98.00782623720468
+            "rudder_margin": 98.72828954517766
         }
     }
 }

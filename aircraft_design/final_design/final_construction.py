@@ -19,6 +19,7 @@ from aircraft_design.final_design.final_fuselage import Fuselage
 from aircraft_design.final_design.final_tails import HorizontalTail, VerticalTail
 from aircraft_design.components.propulsion.engine import Engine
 from aircraft_design.components.propulsion.fuel_tanks import FuelTank
+from aircraft_design.final_design.final_landing_gear import LandingGear
 
 class Aircraft(Component):
     """Main aircraft component that combines wing, cabin, and fuselage"""
@@ -33,7 +34,7 @@ class Aircraft(Component):
         
         # Create wing
         self.wing = Wing(
-            wing_tip_position = 115
+            wing_tip_position = 75
         )
         self.add_child(self.wing)
         
@@ -57,6 +58,10 @@ class Aircraft(Component):
             position=htail_position,
             wing_ref=self.wing,
         )
+        # set fuel tank on horizontal tail
+        for child in self.horizontal_tail.children:
+            if isinstance(child, FuelTank):
+                child.set_fill_level(0.8)
         self.add_child(self.horizontal_tail)
         
         # Create vertical tail
@@ -134,6 +139,70 @@ class Aircraft(Component):
             
             self.wing.add_child(engine)
             self.engines.append(engine)
+
+        # Add landing gears
+        # 1. Nose landing gear (4 wheels) at 30ft from nose
+        nose_gear = LandingGear(
+            name="nose_landing_gear",
+            position=Position(x=30, y=0, z=0),
+            num_wheels=4,
+            wheel_mass=2222
+        )
+        self.add_child(nose_gear)
+
+        # 2. Main landing gears at 133ft from nose
+        # Left side: two sets of 6 wheels
+        main_gear_left_1 = LandingGear(
+            name="main_landing_gear_left_1",
+            position=Position(x=133, y=15, z=0),  # 15ft to the left
+            num_wheels=6,
+            wheel_mass=2222
+        )
+        self.add_child(main_gear_left_1)
+
+        main_gear_left_2 = LandingGear(
+            name="main_landing_gear_left_2",
+            position=Position(x=133, y=25, z=0),  # 25ft to the left
+            num_wheels=6,
+            wheel_mass=2222
+        )
+        self.add_child(main_gear_left_2)
+
+        # Right side: two sets of 4 wheels
+        main_gear_right_1 = LandingGear(
+            name="main_landing_gear_right_1",
+            position=Position(x=133, y=-15, z=0),  # 15ft to the right
+            num_wheels=4
+        )
+        self.add_child(main_gear_right_1)
+
+        main_gear_right_2 = LandingGear(
+            name="main_landing_gear_right_2",
+            position=Position(x=133, y=-25, z=0),  # 25ft to the right
+            num_wheels=4,
+            wheel_mass=2222
+        )
+        self.add_child(main_gear_right_2)
+
+        # 3. Rear landing gears at 155ft from nose
+        # Left side: one set of 6 wheels
+        rear_gear_left = LandingGear(
+            name="rear_landing_gear_left",
+            position=Position(x=155, y=20, z=0),  # 20ft to the left
+            num_wheels=6,
+            wheel_mass=2222
+        )
+        self.add_child(rear_gear_left)
+
+        # Right side: one set of 6 wheels
+        rear_gear_right = LandingGear(
+            name="rear_landing_gear_right",
+            position=Position(x=155, y=-20, z=0),  # 20ft to the right
+            num_wheels=6,
+            wheel_mass=2222
+        )
+        self.add_child(rear_gear_right)
+
         # Add mass analysis
         self.add_analysis(MassAnalysis())
     
@@ -200,8 +269,19 @@ class Aircraft(Component):
 if __name__ == "__main__":
     # Create an aircraft instance
     aircraft = Aircraft()
+    
+    # Now test with full tanks
+    print("\n=== Aircraft Properties with Full Tanks ===")
+    
+    # Get mass properties with full tanks
+    mass_props_full = aircraft.get_mass_properties()
+    print(f"Total Mass: {mass_props_full['total_mass']:.1f} lbs")
+    print(f"CG Position: ({mass_props_full['cg_x']:.2f}, {mass_props_full['cg_y']:.2f}, {mass_props_full['cg_z']:.2f}) ft")
+    
+
+    # First test with drained tanks
+    print("\n=== Aircraft Properties with Drained Tanks ===")
     # empty all fuel tanks
-    aircraft.wing.set_fuel_configuration("empty")
     for child in aircraft.wing.children:
         if isinstance(child, FuelTank):
             child.set_fill_level(0.0)
@@ -213,96 +293,99 @@ if __name__ == "__main__":
         if isinstance(child, FuelTank):
             child.set_fill_level(0.0)
     
-    
-    # Get mass properties
-    mass_props = aircraft.get_mass_properties()
-    
-    # Print aircraft properties
-    print(f"\n=== Aircraft Properties ===")
-    print(f"Total Mass: {mass_props['total_mass']:.1f} lbs")
-    print(f"CG Position: ({mass_props['cg_x']:.2f}, {mass_props['cg_y']:.2f}, {mass_props['cg_z']:.2f}) ft")
-    print(f"Moments of Inertia:")
-    print(f"  Ixx: {mass_props['ixx']:.0f} lbs-ft²")
-    print(f"  Iyy: {mass_props['iyy']:.0f} lbs-ft²")
-    print(f"  Izz: {mass_props['izz']:.0f} lbs-ft²")
+    # Get mass properties with drained tanks
+    mass_props_drained = aircraft.get_mass_properties()
+    print(f"Total Mass: {mass_props_drained['total_mass']:.1f} lbs")
+    print(f"CG Position: ({mass_props_drained['cg_x']:.2f}, {mass_props_drained['cg_y']:.2f}, {mass_props_drained['cg_z']:.2f}) ft")
+    print(f"Fuel Mass: {mass_props_full['total_mass'] - mass_props_drained['total_mass']:.1f} lbs")
 
-    # Create figures for orthographic views
-    aircraft_obj = aircraft.plot()
-    print(f"aircraft objects created")
 
-    # Plot all orthographic views
-    fig = plt.figure(figsize=(18, 12))
-    fig, (ax_top, ax_side, ax_front) = plot_orthographic_views(aircraft_obj, fig=fig)
-    
-    # Add overall CG marker to top view
-    plot_cg(ax_top, mass_props['cg_x'], mass_props['cg_y'], 
-            color='red', markersize=15, label='Aircraft CG')
-    
-    # Add title and legend
-    plt.suptitle("Complete Aircraft - Orthographic Views", fontsize=16)
-    ax_top.legend(loc='upper right')
-    
-    # Save orthographic views
-    plt.tight_layout()
-    plt.savefig('assets/aircraft_orthographic_views.png')
-    plt.close()
-    
-    print(f"orthographic views created")
-    # Create individual views with CG markers
-    # Top view
-    fig_top = plt.figure(figsize=(15, 10))
-    ax = fig_top.add_subplot(111)
-    _, ax = plot_top_view(aircraft_obj, fig=fig_top, ax=ax)
-    plot_cg(ax, mass_props['cg_x'], 0, 
-            color='red', markersize=15, label='Aircraft CG')
-    
-    # Add text annotation
-    """
-    annotation_text = (
-        f"Total Mass: {mass_props['total_mass']:.0f} lbs\n"
-        f"CG: ({mass_props['cg_x']:.2f}, {mass_props['cg_y']:.2f}, {mass_props['cg_z']:.2f}) ft\n"
-        f"Ixx: {mass_props['ixx']:.0f} lbs-ft²  Iyy: {mass_props['iyy']:.0f} lbs-ft²  Izz: {mass_props['izz']:.0f} lbs-ft²"
-    )
-    
-    ax.annotate(annotation_text, 
-               xy=(0.05, 0.05), xycoords='axes fraction',
-               bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", alpha=0.8))
-    """
-    ax.set_title("Aircraft - Top View")
-    ax.set_aspect('equal')
-    ax.legend(loc='upper right')
-    
-    plt.tight_layout()
-    plt.savefig('assets/aircraft_top_view.png')
-    plt.close()
-    print(f"top view created")
-    # Side view
-    fig_side = plt.figure(figsize=(15, 6))
-    ax = fig_side.add_subplot(111)
-    _, ax = plot_side_view(aircraft_obj, fig=fig_side, ax=ax)
-    plot_cg(ax, mass_props['cg_x'], mass_props['cg_z'], 
-            color='red', markersize=15, label='Aircraft CG')
-    
-    ax.set_title("Aircraft - Side View")
-    ax.set_aspect('equal')
-    ax.legend(loc='upper right')
-    
-    plt.tight_layout()
-    plt.savefig('assets/aircraft_side_view.png')
-    plt.close()
-    print(f"side view created")
-    # Front view
-    fig_front = plt.figure(figsize=(10, 10))
-    ax = fig_front.add_subplot(111)
-    _, ax = plot_front_view(aircraft_obj, fig=fig_front, ax=ax)
-    plot_cg(ax, 0, mass_props['cg_z'], 
-            color='red', markersize=15, label='Aircraft CG')
-    
-    ax.set_title("Aircraft - Front View")
-    ax.set_aspect('equal')
-    ax.legend(loc='upper right')    
-    plt.tight_layout()
-    plt.savefig('assets/aircraft_front_view.png')
-    plt.close()
-    print(f"front view created")
-    print("Aircraft visualizations saved to assets directory.")
+
+    # Print moments of inertia (using drained configuration for consistency)
+    print("\n=== Moments of Inertia ===")
+    print(f"  Ixx: {mass_props_drained['ixx']:.0f} lbs-ft²")
+    print(f"  Iyy: {mass_props_drained['iyy']:.0f} lbs-ft²")
+    print(f"  Izz: {mass_props_drained['izz']:.0f} lbs-ft²")
+
+    plot_aircraft = True
+    if plot_aircraft:
+        # Create figures for orthographic views (using drained configuration)
+        aircraft_obj = aircraft.plot()
+        print(f"aircraft objects created")
+
+        # Plot all orthographic views
+        fig = plt.figure(figsize=(18, 12))
+        fig, (ax_top, ax_side, ax_front) = plot_orthographic_views(aircraft_obj, fig=fig)
+        
+        # Add overall CG marker to top view
+        plot_cg(ax_top, mass_props_drained['cg_x'], mass_props_drained['cg_y'], 
+                color='red', markersize=15, label='Aircraft CG')
+        
+        # Add title and legend
+        plt.suptitle("Complete Aircraft - Orthographic Views", fontsize=16)
+        ax_top.legend(loc='upper right')
+        
+        # Save orthographic views
+        plt.tight_layout()
+        plt.savefig('assets/aircraft_orthographic_views.png')
+        plt.close()
+        
+        print(f"orthographic views created")
+        # Create individual views with CG markers
+        # Top view
+        fig_top = plt.figure(figsize=(15, 10))
+        ax = fig_top.add_subplot(111)
+        _, ax = plot_top_view(aircraft_obj, fig=fig_top, ax=ax)
+        plot_cg(ax, mass_props_drained['cg_x'], 0, 
+                color='red', markersize=15, label='Aircraft CG')
+        
+        # Add text annotation
+        """
+        annotation_text = (
+            f"Total Mass: {mass_props['total_mass']:.0f} lbs\n"
+            f"CG: ({mass_props['cg_x']:.2f}, {mass_props['cg_y']:.2f}, {mass_props['cg_z']:.2f}) ft\n"
+            f"Ixx: {mass_props['ixx']:.0f} lbs-ft²  Iyy: {mass_props['iyy']:.0f} lbs-ft²  Izz: {mass_props['izz']:.0f} lbs-ft²"
+        )
+        
+        ax.annotate(annotation_text, 
+                xy=(0.05, 0.05), xycoords='axes fraction',
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", alpha=0.8))
+        """
+        ax.set_title("Aircraft - Top View")
+        ax.set_aspect('equal')
+        ax.legend(loc='upper right')
+        
+        plt.tight_layout()
+        plt.savefig('assets/aircraft_top_view.png')
+        plt.close()
+        print(f"top view created")
+        # Side view
+        fig_side = plt.figure(figsize=(15, 6))
+        ax = fig_side.add_subplot(111)
+        _, ax = plot_side_view(aircraft_obj, fig=fig_side, ax=ax)
+        plot_cg(ax, mass_props_drained['cg_x'], mass_props_drained['cg_z'], 
+                color='red', markersize=15, label='Aircraft CG')
+        
+        ax.set_title("Aircraft - Side View")
+        ax.set_aspect('equal')
+        ax.legend(loc='upper right')
+        
+        plt.tight_layout()
+        plt.savefig('assets/aircraft_side_view.png')
+        plt.close()
+        print(f"side view created")
+        # Front view
+        fig_front = plt.figure(figsize=(10, 10))
+        ax = fig_front.add_subplot(111)
+        _, ax = plot_front_view(aircraft_obj, fig=fig_front, ax=ax)
+        plot_cg(ax, 0, mass_props_drained['cg_z'], 
+                color='red', markersize=15, label='Aircraft CG')
+        
+        ax.set_title("Aircraft - Front View")
+        ax.set_aspect('equal')
+        ax.legend(loc='upper right')    
+        plt.tight_layout()
+        plt.savefig('assets/aircraft_front_view.png')
+        plt.close()
+        print(f"front view created")
+        print("Aircraft visualizations saved to assets directory.")

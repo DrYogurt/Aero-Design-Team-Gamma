@@ -729,8 +729,11 @@ def longitudinal_stability_analysis(aircraft_params):
         'CL_total': CL_total,
         'CM_total': CM,
         'CD_total': CD_total,
+        'CL_0': CL_0,
         'CL_alpha': CL_alpha,
+        'CD_0': CD_0,
         'CD_alpha': CD_alpha,
+        'CM_0': CM_0,
         'CM_alpha': CM_alpha,
         'h_n': hn,
         'static_margin': SM,
@@ -990,7 +993,7 @@ def plot_stability_derivatives(aircraft_params, alpha_range):
         
         # Store results
         CL_values.append(results['CL_total'])
-        CM_values.append(results['CM'])
+        CM_values.append(results['CM_total'])
         CM_alpha_values.append(results['CM_alpha'])
         h_n_values.append(results['h_n'])
         SM_values.append(results['static_margin'])

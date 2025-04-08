@@ -73,33 +73,31 @@ class Wing(Component):
 
     def _add_fuel_tanks(self):
         """Add four fuel tanks to the wing"""
-        # Tank dimensions in feet
-        tank_width = 65
         
         # Wing position in feet
         wing_x = self.wing_tip_position
         wing_z = 0.14 * self.root_chord
         
-        # Determine fill levels based on configuration
-        fill_levels = {
-            "full": 1.0,
-            "empty": 0.0,
-            "half": 0.5
-        }
-        base_fill_level = fill_levels[self.fuel_configuration]
+        # Tank dimensions in feet
+        inner_tank_width = 55
+        outer_tank_width = 15
+        inner_tank_length = self.root_chord*.6
+        outer_tank_length = self.root_chord*.1
 
+
+
+        # Determine fill levels based on configuration
         tank_count = 0
         for side in ['left', 'right']:
             for position in ['front', 'back']:
                 # For half configuration, only fill the first two tanks
-                fill_level = 0.0 if (self.fuel_configuration == "half" and tank_count >= 2) else base_fill_level
                 
                 tank = FuelTank(
-                    length=(self.root_chord*.32 if position == 'front' else self.geometry.parameters['tip_chord']),
-                    front_height=(self.root_chord*.10 if position == 'front' else self.geometry.parameters['tip_chord']*.13), #13% of length
-                    back_height=(self.root_chord*.10 if position == 'front' else self.geometry.parameters['tip_chord']*.13), #10% of length
-                    width=tank_width,
-                    fill_level=fill_level
+                    length=(inner_tank_length if position == 'front' else outer_tank_length),
+                    front_height=(inner_tank_length*.13 if position == 'front' else outer_tank_length*.13), #13% of length
+                    back_height=(inner_tank_length*.10 if position == 'front' else outer_tank_length*.13), #10% of length
+                    width=(inner_tank_width if position == 'front' else outer_tank_width),
+                    fill_level=1
                 )
                 tank_count += 1
                 tank.geometry = FuelTankGeometry()
@@ -107,7 +105,7 @@ class Wing(Component):
                 tank.name = f"fuel_tank_{side}_{position}"
                 
                 # Position along wing span (y-axis)
-                y_offset = (tank_width / 2 if position == 'front' else 3*tank_width / 2)*(1 if side == 'left' else -1) + (tank_width / 2 if side == 'left' else -tank_width / 2)
+                y_offset = (inner_tank_width / 2 if position == 'front' else 3*inner_tank_width / 2)*(1 if side == 'left' else -1) + (inner_tank_width / 2 if side == 'left' else -inner_tank_width / 2)
                 
                 # Position along wing chord (x-axis)
                 # Position tanks at 25% and 60% of local chord
@@ -115,7 +113,7 @@ class Wing(Component):
                 # Adjust x position for sweep
                 sweep_rad = np.radians(40.0)  # wing sweep in radians
                 sweep_offset = abs(y_offset) * np.tan(sweep_rad)
-                x_with_sweep = sweep_offset
+                x_with_sweep = sweep_offset / 2
                 
                 # Z-offset (height) - position tanks inside the wing
                 z_offset = abs(y_offset) * np.tan(np.radians(self.geometry.parameters['dihedral']))
@@ -181,32 +179,11 @@ class Wing(Component):
         # Calculate total control surface area
         self.total_control_surface_area = self.flap_area + self.aileron_area
 
-    def set_fuel_configuration(self, config: str):
-        """
-        Set the fuel configuration for all tanks
-        
-        Args:
-            config: One of "full", "empty", or "half"
-        """
-        self.fuel_configuration = config
-        fill_levels = {
-            "full": 1.0,
-            "empty": 0.0,
-            "half": 0.5
-        }
-        base_fill_level = fill_levels[config]
-        
-        tank_count = 0
-        for child in self.children:
-            if isinstance(child, FuelTank):
-                # For half configuration, only fill the first two tanks
-                fill_level = 0.0 if (config == "half" and tank_count >= 2) else base_fill_level
-                child.set_fill_level(fill_level)
-                tank_count += 1
+
 
     def _populate_mass_analysis(self):
         # Values from solidworks: 3/30/2025
-        mass_lb = 28087.86
+        mass_lb = 280000.86
         cg_x_in = 822.18
         cg_y_in = 0.0  # Setting to 0.0 to ensure symmetry about the y-axis
         cg_z_in = 0.01  # This was 47.06 but appears to have been swapped with y
@@ -291,7 +268,9 @@ if __name__ == "__main__":
     wing = Wing(wing_tip_position=75)
     
     # Print fuel tank information
-    """
+
+    total_fuel_volume = 0.0
+    #total_fuel_mass = 0.0
     print("\n=== Fuel Tank Information ===")
     for tank in wing.children:
         if isinstance(tank, FuelTank):
@@ -299,8 +278,13 @@ if __name__ == "__main__":
             print(f"Dimensions: {tank.length:.1f}ft x {tank.width:.1f}ft x {tank.front_height:.1f}ft (front) x {tank.back_height:.1f}ft (back)")
             print(f"Volume: {tank.volume:.1f} ft³")
             print(f"Position: ({tank.geometry.position.x:.1f}, {tank.geometry.position.y:.1f}, {tank.geometry.position.z:.1f})")
-            print(f"Fill Level: {tank.fill_level}")
-    """
+            
+            #print(f"Fill Level: {tank.fill_level}")
+            total_fuel_volume += tank.volume
+            #total_fuel_mass += tank.fuel_mass
+    print(f"Total Fuel Volume: {total_fuel_volume:.0f} ft³")
+    print(f"Total Fuel Mass: {total_fuel_volume * tank.fuel_density:.0f} lbs")
+        
     # Print control surface information
     print("\n=== Control Surface Information ===")
     print(f"Flap Area: {wing.flap_area:.1f} ft²")
