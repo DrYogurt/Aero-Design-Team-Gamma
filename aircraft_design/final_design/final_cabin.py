@@ -7,7 +7,7 @@ from aircraft_design.core.base import Component, Position
 from aircraft_design.components.interior.cabin import SingleFloorCabin, EconomyBlock, ServiceComponent
 from aircraft_design.components.interior.service import Galley, Bathroom, Stairs, InteriorComponent
 from aircraft_design.analysis.mass_analysis import MassAnalysis, MassFeature
-from aircraft_design.core.plotting import plot_top_view, plot_cg, Object3D
+from aircraft_design.core.plotting import plot_top_view, plot_cg, Object3D, plot_front_view
 
 
 class Cabin(Component):
@@ -19,23 +19,20 @@ class Cabin(Component):
         
         self.position = position if position else Position()
         # Initialize cabin parameters
-        self.first_floor_height = 7.0  # feet
-        self.second_floor_height = 7.0  # feet
-        self.cabin_height = self.first_floor_height + self.second_floor_height
+        self.top_floor_height = 7.0  # feet
+        self.bottom_floor_height = 7.0  # feet
+        self.cabin_height = self.top_floor_height + self.bottom_floor_height
         
         # Create interior components
-        self._create_first_floor()
-        self._create_second_floor()
+        self._create_top_floor()
+        self._create_bottom_floor()
         
         # Add floors to cabin interior
         self.cabin_interior = InteriorComponent("cabin_interior")
-        self.cabin_interior.add_child(self.first_floor)
-        self.cabin_interior.add_child(self.second_floor)
+        self.cabin_interior.add_child(self.top_floor)
+        self.cabin_interior.add_child(self.bottom_floor)
         
-        # Set vertical position for second floor
-        self.second_floor.geometry.position.z += self.first_floor_height
-        
-        # Store properties and dimensions
+
         self._compute_dimensions()
         
         # Add mass analysis
@@ -124,17 +121,17 @@ class Cabin(Component):
         self.small_service = small_service
         self.total_width = total_width
     
-    def _create_first_floor(self):
-        """Create the first floor layout with economy sections and service areas"""
+    def _create_top_floor(self):
+        """Create the top floor layout with economy sections and service areas"""
         # Create service areas
         self._create_service_areas()
         
         # Define economy sections
-        first_floor_sections = [
+        top_floor_sections = [
             EconomyBlock(
                 name="floor_1_section_1",
                 seat_groups=[3, 6, 3],  # 3-6-3 configuration
-                rows_per_section=[9, 9],  # 18 rows total
+                rows_per_section=[6, 9],  # 18 rows total
                 seats_per_exit=55
             ),
             EconomyBlock(
@@ -146,49 +143,49 @@ class Cabin(Component):
             EconomyBlock(
                 name="floor_1_section_3",
                 seat_groups=[3, 6, 3],  # 3-6-3 configuration
-                rows_per_section=[6, 8],  # 14 rows total
+                rows_per_section=[9, 9],  # 18 rows total
                 seats_per_exit=55
             )
         ]
         
-        # Create the first floor layout
-        self.first_floor = InteriorComponent("first_floor")
-        self.first_floor.geometry.position = self.position
+        # Create the top floor layout
+        self.top_floor = InteriorComponent("top_floor")
+        self.top_floor.geometry.position = self.position + Position(z=self.bottom_floor_height + 2)
         
         # Add front service area
         front_service = self.big_service
-        self.first_floor.add_child(front_service)
+        self.top_floor.add_child(front_service)
         front_service.geometry.position.x = 0
         current_position = front_service.geometry.parameters['depth']
         
         # Add cabin sections with small service areas between them
-        for i, section in enumerate(first_floor_sections):
+        for i, section in enumerate(top_floor_sections):
             # Add the cabin section
-            self.first_floor.add_child(section)
+            self.top_floor.add_child(section)
             section.geometry.position.x = current_position
             current_position += section.total_length
             
             # Add small service area after each section except the last one
-            if i < len(first_floor_sections) - 1:
+            if i < len(top_floor_sections) - 1:
                 mid_service = copy.deepcopy(self.small_service)
                 mid_service.name = f"mid_service_{i+1}"
-                self.first_floor.add_child(mid_service)
+                self.top_floor.add_child(mid_service)
                 mid_service.geometry.position.x = current_position
                 current_position += mid_service.geometry.parameters['depth']
         
         # Add back service area at the end
         back_service = copy.deepcopy(self.big_service)
         back_service.name = "back_service"
-        self.first_floor.add_child(back_service)
+        self.top_floor.add_child(back_service)
         back_service.geometry.position.x = current_position
         
         # Store sections for later use
-        self.first_floor_sections = first_floor_sections
+        self.top_floor_sections = top_floor_sections
     
-    def _create_second_floor(self):
-        """Create the second floor layout with economy sections and service areas"""
+    def _create_bottom_floor(self):
+        """Create the bottom floor layout with economy sections and service areas"""
         # Define economy sections
-        second_floor_sections = [
+        bottom_floor_sections = [
             EconomyBlock(
                 name="floor_2_section_1",
                 seat_groups=[3, 6, 3],  # 3-6-3 configuration
@@ -203,47 +200,47 @@ class Cabin(Component):
             )
         ]
         
-        # Create the second floor layout
-        self.second_floor = InteriorComponent("second_floor")
-        self.second_floor.geometry.position = self.position
+        # Create the bottom floor layout
+        self.bottom_floor = InteriorComponent("bottom_floor")
+        self.bottom_floor.geometry.position = self.position
         # Add front service area
         front_service_2 = copy.deepcopy(self.big_service)
         front_service_2.name = "front_service_2"
-        self.second_floor.add_child(front_service_2)
+        self.bottom_floor.add_child(front_service_2)
         front_service_2.geometry.position.x = 0
         current_position = front_service_2.geometry.parameters['depth']
         
         # Add cabin sections with small service areas between them
-        for i, section in enumerate(second_floor_sections):
+        for i, section in enumerate(bottom_floor_sections):
             # Add the cabin section
-            self.second_floor.add_child(section)
+            self.bottom_floor.add_child(section)
             section.geometry.position.x = current_position
             current_position += section.total_length
             
             # Add small service area after each section except the last one
-            if i < len(second_floor_sections) - 1:
+            if i < len(bottom_floor_sections) - 1:
                 mid_service = copy.deepcopy(self.small_service)
                 mid_service.name = f"mid_service_2_{i+1}"
-                self.second_floor.add_child(mid_service)
+                self.bottom_floor.add_child(mid_service)
                 mid_service.geometry.position.x = current_position
                 current_position += mid_service.geometry.parameters['depth']
         
         # Add back service area at the end
         back_service_2 = copy.deepcopy(self.big_service)
         back_service_2.name = "back_service_2"
-        self.second_floor.add_child(back_service_2)
+        self.bottom_floor.add_child(back_service_2)
         back_service_2.geometry.position.x = current_position
         
         # Store sections for later use
-        self.second_floor_sections = second_floor_sections
+        self.bottom_floor_sections = bottom_floor_sections
     
     def _compute_dimensions(self):
         """Compute the dimensions of the cabin"""
         self.cabin_length = 0
         self.cabin_width = 0
         
-        # Get dimensions from first floor
-        for component in self.first_floor.children:
+        # Get dimensions from top floor
+        for component in self.top_floor.children:
             if hasattr(component, 'geometry'):
                 # Calculate the end position of this component
                 end_x = component.geometry.position.x
@@ -270,8 +267,8 @@ class Cabin(Component):
                     
                 self.cabin_width = max(self.cabin_width, width)
         
-        # Do the same for second floor
-        for component in self.second_floor.children:
+        # Do the same for bottom floor
+        for component in self.bottom_floor.children:
             if hasattr(component, 'geometry'):
                 # Calculate the end position of this component
                 end_x = component.geometry.position.x
@@ -305,7 +302,7 @@ class Cabin(Component):
         
         # Calculate seat count
         self.total_seats = 0
-        for section in self.first_floor_sections + self.second_floor_sections:
+        for section in self.top_floor_sections + self.bottom_floor_sections:
             self.total_seats += section.num_seats
     
     def calculate_moments_of_inertia(self):
@@ -342,16 +339,16 @@ class Cabin(Component):
     def plot(self, *args, **kwargs) -> Object3D:
         """Create a 3D visualization of the cabin"""
         # Create a combined object from both floors
-        cabin_obj = self.first_floor.plot()
+        cabin_obj = self.top_floor.plot()
         
-        # Add second floor with different color
-        second_floor_obj = self.second_floor.plot()
-        for shape in second_floor_obj.shapes:
-            shape.metadata['color'] = 'red'  # Make second floor red for distinction
+        # Add bottom floor with different color
+        bottom_floor_obj = self.bottom_floor.plot()
+        for shape in bottom_floor_obj.shapes:
+            shape.metadata['color'] = 'red'  # Make bottom floor red for distinction
             shape.metadata['alpha'] = 0.4    # More translucent
         
         # Combine objects
-        cabin_obj.shapes.extend(second_floor_obj.shapes)
+        cabin_obj.shapes.extend(bottom_floor_obj.shapes)
         cabin_obj.metadata['name'] = 'cabin'
         
         return cabin_obj
@@ -361,15 +358,30 @@ if __name__ == "__main__":
     # Create a cabin instance
     cabin = Cabin()
     
+    """
+    # Print emergency exit positions
+    print("\n=== Emergency Exit Positions ===")
+    print("\Top Floor Exits:")
+    for section in cabin.top_floor_sections:
+        for exit_row in section.exit_rows:
+            global_pos = exit_row.get_global_position()
+            print(f"{exit_row.name}: ({global_pos[0]:.2f}, {global_pos[1]:.2f}, {global_pos[2]:.2f}) ft")
+    
+    print("\Bottom Floor Exits:")
+    for section in cabin.bottom_floor_sections:
+        for exit_row in section.exit_rows:
+            global_pos = exit_row.get_global_position()
+            print(f"{exit_row.name}: ({global_pos[0]:.2f}, {global_pos[1]:.2f}, {global_pos[2]:.2f}) ft")
+    """
     # Calculate mass properties and moments of inertia
     mass_props = cabin.get_mass_properties()
     inertia = cabin.calculate_moments_of_inertia()
     
     # Get individual floor properties for comparison
-    cabin.first_floor.run_analysis('mass_analysis', analyze_children=True)
-    cabin.second_floor.run_analysis('mass_analysis', analyze_children=True)
-    first_floor_results = cabin.first_floor.analysis_results['mass_analysis']
-    second_floor_results = cabin.second_floor.analysis_results['mass_analysis']
+    cabin.top_floor.run_analysis('mass_analysis', analyze_children=True)
+    cabin.bottom_floor.run_analysis('mass_analysis', analyze_children=True)
+    top_floor_results = cabin.top_floor.analysis_results['mass_analysis']
+    bottom_floor_results = cabin.bottom_floor.analysis_results['mass_analysis']
     
     # Print dimensions
     print(f"\n=== Cabin Dimensions ===")
@@ -385,10 +397,10 @@ if __name__ == "__main__":
     
     # Print individual floor results
     print("\n=== Individual Floor Results ===")
-    print(f"First Floor Mass: {first_floor_results['total_mass']:.1f} lbs")
-    print(f"First Floor CG: ({first_floor_results['cg_x']:.2f}, {first_floor_results['cg_y']:.2f}, {first_floor_results['cg_z']:.2f})")
-    print(f"Second Floor Mass: {second_floor_results['total_mass']:.1f} lbs")
-    print(f"Second Floor CG: ({second_floor_results['cg_x']:.2f}, {second_floor_results['cg_y']:.2f}, {second_floor_results['cg_z']:.2f})")
+    print(f"top Floor Mass: {top_floor_results['total_mass']:.1f} lbs")
+    print(f"Top Floor CG: ({top_floor_results['cg_x']:.2f}, {top_floor_results['cg_y']:.2f}, {top_floor_results['cg_z']:.2f})")
+    print(f"Bottom Floor Mass: {bottom_floor_results['total_mass']:.1f} lbs")
+    print(f"Bottom Floor CG: ({bottom_floor_results['cg_x']:.2f}, {bottom_floor_results['cg_y']:.2f}, {bottom_floor_results['cg_z']:.2f})")
     
     # Print moments of inertia
     print("\n=== Overall Moments of Inertia ===")
@@ -408,10 +420,10 @@ if __name__ == "__main__":
     plot_cg(ax, mass_props['cg_x'], mass_props['cg_y'], color='green', markersize=15, label='Overall CG')
     
     # Add individual floor CG markers
-    plot_cg(ax, first_floor_results['cg_x'], first_floor_results['cg_y'], 
-            color='blue', markersize=8, label='First Floor CG')
-    plot_cg(ax, second_floor_results['cg_x'], second_floor_results['cg_y'], 
-            color='red', markersize=8, label='Second Floor CG')
+    plot_cg(ax, top_floor_results['cg_x'], top_floor_results['cg_y'], 
+            color='blue', markersize=8, label='top Floor CG')
+    plot_cg(ax, bottom_floor_results['cg_x'], bottom_floor_results['cg_y'], 
+            color='red', markersize=8, label='bottom Floor CG')
     
     # Add text annotation
     annotation_text = (
@@ -431,4 +443,12 @@ if __name__ == "__main__":
     
     plt.tight_layout()
     plt.savefig('assets/overall_cabin_cg.png')
+    plt.close('all')
+
+    # plot the front view of the cabin
+    fig = plt.figure(figsize=(15, 10))
+    ax = fig.add_subplot(111)
+    cabin_visualization = cabin.plot()
+    _, ax = plot_front_view(cabin_visualization, fig=fig, ax=ax)
+    plt.savefig('assets/cabin_front_view.png')
     plt.close('all')

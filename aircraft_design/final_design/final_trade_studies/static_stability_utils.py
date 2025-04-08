@@ -10,7 +10,7 @@ def aircraft_to_parameters(aircraft: Aircraft):
     Convert an Aircraft object to a dictionary of parameters
     """
     # First define basic geometric parameters
-    wing = aircraft.wing.aero.geometry
+    wing = aircraft.wing.geometry
     htail = aircraft.horizontal_tail.geometry
     vtail = aircraft.vertical_tail.geometry
     fuselage = aircraft.fuselage.geometry
@@ -19,11 +19,11 @@ def aircraft_to_parameters(aircraft: Aircraft):
 
     cg_absolute_position = aircraft.get_mass_properties()['cg_x']
     mac = wing.mean_aerodynamic_chord
-    
+    mean_wingtip_position = wing_zero + distance_AC_behind_quarter_chord(wing.taper_ratio, wing.parameters['span'], wing.parameters['le_sweep'])
+
     # Get tail incidence angle from orientation
     tail_incidence_deg = htail.orientation.pitch
     tail_incidence_rad = np.radians(tail_incidence_deg)
-    
     aircraft_params = {
         'wing_area': wing.area,
         'wingspan': wing.parameters['span'],
@@ -31,17 +31,22 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'taper_ratio': wing.taper_ratio,
         'aspect_ratio': wing.aspect_ratio,
         'mac': mac,
+        'Gamma': np.radians(wing.parameters['dihedral']),
+        'Lambda': np.radians(wing.parameters['le_sweep']),  
+        'CD_0': 0.017,
         # Tail geometry
         'htail_area': htail.area,         # Horizontal tail area (ft^2)
-        'htail_arm': htail.position.x - wing_zero,  # Distance from leading edge of wing to horizontal tail AC (ft)
+        'htail_arm': htail.position.x - mean_wingtip_position,  # Distance from leading edge of wing to horizontal tail AC (ft)
         'vertical_tail_area': vtail.area, # ft^2
-        'vertical_tail_arm': vtail.position.x - wing_zero,  # Distance from leading edge of wing to vertical tail AC (ft)
-        
+        'vertical_tail_arm': vtail.position.x + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) - mean_wingtip_position,  # Distance from leading edge of wing to vertical tail AC (ft)
+        'vertical_tail_zv': vtail.position.z + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) / np.tan(np.radians(vtail.parameters['sweep'])) - aircraft.get_mass_properties()['cg_z'],  # Vertical tail height (ft)
+        'vertical_tail_height': vtail.parameters['height'],
+        'vertical_tail_chord': vtail.parameters['root_chord'],
         # Position parameters
-        'cg_position': (cg_absolute_position - wing_zero) / mac,  # CG position as fraction of MAC
-        'ac_position': 0.25,        # Aerodynamic center position as fraction of MAC
-        'htail_ac_position': (htail.position.x - wing_zero) / mac,  # Horizontal tail AC position as fraction of MAC
-        
+        'cg_position': (cg_absolute_position - mean_wingtip_position) / mac,  # CG position as fraction of MAC
+        'ac_position': (wing.parameters['root_chord']/4 + mean_wingtip_position-wing_zero) / mac,        # Aerodynamic center position as fraction of MAC
+        'htail_ac_position': (htail.position.x  - mean_wingtip_position  + wing.parameters['root_chord']/4) / mac,  # Horizontal tail AC position as fraction of MAC
+        'htail_aspect_ratio': htail.aspect_ratio,
         # Basic aerodynamic parameters
         'section_lift_slope': 2*np.pi,  # 2π per radian (theoretical)
         'zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
@@ -51,20 +56,26 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'vertical_tail_efficiency': 0.95,  # Vertical tail efficiency factor
         
         # Control surface parameters
-        'aileron_inner_location': 0.5,  # Fraction of semi-span
-        'aileron_outer_location': 0.9,  # Fraction of semi-span
+        'aileron_inner_location': aircraft.wing.aileron_start,  # Fraction of semi-span
+        'aileron_outer_location': aircraft.wing.aileron_end,    # Fraction of semi-span
+        'aileron_effectiveness': 1,#calculate_control_surface_effectiveness(aircraft.wing.aileron_chord_ratio, "sealed"),
         'max_rudder_deflection': np.radians(25),  # radians
+        'rudder_effectiveness': 1,#calculate_control_surface_effectiveness(aircraft.vertical_tail.rudder_chord_ratio, "sealed"),
         
         # Engine parameters
-        'max_thrust': aircraft.engines[0].parameters['thrust'],        # lbs
-        'engine_offset': 53,        # ft from centerline
+        'max_thrust': max([engine.thrust for engine in aircraft.engines]),        # lbs
+        'engine_offset': max([engine.position.y for engine in aircraft.engines]),        # ft from centerline
         
         # Initial conditions
         'tail_incidence': tail_incidence_rad,  # Using value from orientation
         
-        # Weight
-        'aircraft_weight': 1.585e6   # lbs
+        'aircraft_weight': aircraft.get_mass_properties()['total_mass'],
+        'airspeed': 0.9 * 1116.45,    # 90% of design speed
+        'density': 0.00237717,       # Air density at altitude
+        'alpha': np.radians(2),     # Initial angle of attack
+        #'sideslip': 0               # No sideslip
     }
+    #print(f"root chord: {wing.parameters['root_chord']}")
     if htail.aspect_ratio == 0.0:
         raise ValueError("Horizontal tail aspect ratio is 0.0")
     # Calculate derived parameters
@@ -78,8 +89,6 @@ def aircraft_to_parameters(aircraft: Aircraft):
     aircraft_params['vertical_tail_lift_slope'] = finite_wing_correction(aircraft_params['section_lift_slope'], vtail.aspect_ratio)
     
     aircraft_params['d_epsilon_d_alpha'] = downwash_gradient(aircraft_params['wing_lift_slope'],aircraft_params['aspect_ratio'])
-    aircraft_params['aileron_effectiveness'] = 1#calculate_control_surface_effectiveness(0.25, "sealed") #TODO: double check this
-    aircraft_params['tail_efficiency'] = 1 #dynamic_presure_ratio(aircraft_params['htail_arm'], 5, 0)
     aircraft_params['cm_ac'] = -0.1
     aircraft_params['d_epsilon_d_beta'] = 0.0
     return aircraft_params
@@ -102,8 +111,7 @@ def update_aircraft_parameters(aircraft: Aircraft, design_vars):
     v_tail_taper = design_vars[3]  # Only modify taper ratio for vertical tail
 
     # update the aircraft parameters
-    aircraft.wing.aero.geometry.position.x = wing_position
-    
+    aircraft.wing.geometry.position.x = wing_position
     # Set horizontal tail incidence angle in degrees
     aircraft.horizontal_tail.geometry.orientation.pitch = tail_incidence_rad
     
@@ -118,14 +126,13 @@ def update_aircraft_parameters(aircraft: Aircraft, design_vars):
     return aircraft
 
 
-def stability_objective_function(design_vars, aircraft: Aircraft, flight_conditions):
+def stability_objective_function(design_vars, aircraft: Aircraft):
     """
     Simplified objective function for stability optimization
     
     Parameters:
     design_vars: array [wing_position, tail_incidence, h_tail_taper, v_tail_taper]
     aircraft: Aircraft object
-    flight_conditions: Flight conditions to analyze
     
     Returns:
     cost: Cost value (lower is better)
@@ -136,30 +143,29 @@ def stability_objective_function(design_vars, aircraft: Aircraft, flight_conditi
         aircraft_copy = update_aircraft_parameters(aircraft_copy, design_vars)
         current_params = aircraft_to_parameters(aircraft_copy)
 
-        # Create a copy of flight conditions to modify
-        current_flight_conditions = flight_conditions.copy()
+        # Add flight conditions to aircraft parameters
+        current_params.update({
+            'airspeed': 0.9 * 1116.45,    # 90% of design speed
+            'density': 0.00237717,       # Air density at altitude
+            'alpha': 0,     # Initial angle of attack
+            'sideslip': 0               # No sideslip
+        })
 
         # Run stability analysis
-        stability_results = analyze_aircraft_stability("optimization", current_params, current_flight_conditions)
-        
-        # Update flight conditions with trim angle of attack
-        current_flight_conditions['alpha'] = stability_results['trim_control']['alpha_trim_1']
-        
-        # Run stability analysis again with updated flight conditions
-        stability_results = analyze_aircraft_stability("optimization", current_params, current_flight_conditions)
+        stability_results = analyze_aircraft_stability("optimization", current_params)
         
         # Extract key stability metrics
         static_margin = stability_results['longitudinal_stability']['static_margin']
         trim_angle = stability_results['trim_control']['alpha_trim_1']
         CN_beta = stability_results['directional_stability']['CN_beta']
-        
+        neutral_point = stability_results['longitudinal_stability']['h_n']
         # Define cost components using squared errors
         target_static_margin = 0.2  # Target 15% static margin
-        static_margin_cost = 5.0 * (static_margin - target_static_margin)**2
+        static_margin_cost = 15.0 * (static_margin - target_static_margin)**2
         
         # Higher penalty for unstable configurations
         if static_margin < 0.05:
-            static_margin_cost += 50.0 * (0.05 - static_margin)**2
+            static_margin_cost += 50.0 * (0.2 - static_margin)**2
             
         # Minimize trim angle
         trim_angle_cost = (trim_angle-np.radians(2))**2
@@ -172,24 +178,22 @@ def stability_objective_function(design_vars, aircraft: Aircraft, flight_conditi
                 trim_angle_cost + 
                 directional_stability_cost)
         
-        # Print current values for debugging
-        #print(f"Wing pos: {design_vars[0]:.4f}, Tail inc: {np.degrees(design_vars[1]):.2f}°, "
-        #      f"H-taper: {design_vars[2]:.2f}, V-taper: {design_vars[3]:.2f}, "
-        #      f"SM: {static_margin:.3f}, Cost: {cost:.4f}")
-        
+        # print cg, wing zero, mac
+        print(f"CG: {current_params['cg_position']:.3f} MAC")
+        print(f"Static Margin: {static_margin:.3f}")
         return cost
     except Exception as e:
         print(f"Error in objective function: {e}")
+        raise e
         return 1e6  # Return high cost for invalid configurations
 
 
-def optimize_stability(aircraft: Aircraft, flight_conditions):
+def optimize_stability(aircraft: Aircraft):
     """
     Simplified optimization of aircraft stability
     
     Parameters:
     aircraft: Aircraft object
-    flight_conditions: Flight conditions to analyze
     
     Returns:
     result: Optimization result object
@@ -198,25 +202,26 @@ def optimize_stability(aircraft: Aircraft, flight_conditions):
     
     # Initial guess for design variables (simplified set)
     x0 = np.array([
-        0.25,  # Wing position (25% MAC)
-        np.radians(2),   # Tail incidence (2 degrees)
-        # Current taper ratios
-        aircraft.horizontal_tail.geometry.parameters['tip_chord'] / 
-        aircraft.horizontal_tail.geometry.parameters['root_chord'],  # H-tail taper
-        aircraft.vertical_tail.geometry.parameters['tip_chord'] / 
-        aircraft.vertical_tail.geometry.parameters['root_chord']     # V-tail taper
+          #wing_position
+          #tail_incidence_rad
+          #h_tail_taper 
+          #v_tail_taper
+          120,
+          np.radians(2),
+          0.5,
+          0.5
     ])
     
     # Add bounds to prevent zero or negative values for critical parameters
     bounds = [
-        (25,175),                      # Wing position bounds (15-35% MAC)
+        (25,250),                      # Wing position bounds (15-35% MAC)
         (0, np.radians(10)),  # Tail incidence bounds (-5 to 10 degrees)
-        (0.1, 0.9),                        # Horizontal tail taper ratio bounds (0.3-0.9)
-        (0.1, 0.9)                         # Vertical tail taper ratio bounds (0.3-0.9)
+        (0, 0.9),                        # Horizontal tail taper ratio bounds (0.3-0.9)
+        (0, 0.9)                         # Vertical tail taper ratio bounds (0.3-0.9)
     ]
     
     # Define objective function
-    objective = lambda x: stability_objective_function(x, aircraft, flight_conditions)
+    objective = lambda x: stability_objective_function(x, aircraft)
     
     print("Starting optimization...")
     print("Initial parameters:")
@@ -251,13 +256,13 @@ def optimize_stability(aircraft: Aircraft, flight_conditions):
     # Calculate and print final static margin
     final_aircraft = update_aircraft_parameters(aircraft, result.x)
     final_params = aircraft_to_parameters(final_aircraft)
-    stability_results = analyze_aircraft_stability("final", final_params, flight_conditions)
+    stability_results = analyze_aircraft_stability("final", final_params)
     static_margin = stability_results['longitudinal_stability']['static_margin']
     print(f"Final Static Margin: {static_margin:.3f}")
     
     return result
 
-def analyze_final_parameters(result, aircraft: Aircraft, flight_conditions):
+def analyze_final_parameters(result, aircraft: Aircraft):
     """
     Analyze and save the final optimized parameters and their effects
     """
@@ -269,15 +274,16 @@ def analyze_final_parameters(result, aircraft: Aircraft, flight_conditions):
     final_aircraft = update_aircraft_parameters(aircraft, result.x)
     final_params = aircraft_to_parameters(final_aircraft)
     
+    
     # Calculate all stability metrics and analyses
-    stability_results = analyze_aircraft_stability("optimized", final_params, flight_conditions)
+    stability_results = analyze_aircraft_stability("optimized", final_params)
     
     # Perform individual analyses
-    longitudinal_results = longitudinal_stability_analysis(final_params, flight_conditions)
-    directional_results = directional_stability_analysis(final_params, flight_conditions)
-    lateral_results = lateral_control_analysis(final_params, flight_conditions)
-    trim_results = trim_and_control_analysis(final_params, flight_conditions)
-    engine_out_results = engine_out_analysis(final_params, flight_conditions)
+    longitudinal_results = longitudinal_stability_analysis(final_params)
+    directional_results = directional_stability_analysis(final_params)
+    lateral_results = lateral_control_analysis(final_params)
+    trim_results = trim_and_control_analysis(final_params,final_params)
+    engine_out_results = engine_out_analysis(final_params)
     
     # Calculate tail volume coefficients
     h_tail_volume = final_params['htail_area'] * final_params['htail_arm'] / (
@@ -302,7 +308,6 @@ def analyze_final_parameters(result, aircraft: Aircraft, flight_conditions):
             }
         },
         'final_parameters': final_params,
-        'flight_conditions': flight_conditions,
         'raw_analysis_results': {
             'longitudinal_stability_analysis': longitudinal_results,
             'directional_stability_analysis': directional_results,
@@ -344,13 +349,6 @@ def analyze_final_parameters(result, aircraft: Aircraft, flight_conditions):
 
 if __name__ == "__main__":
     aircraft = Aircraft()
-    # Define flight conditions for optimization
-    flight_conditions = {
-        'airspeed': 0.9 * 1116.45,    # 90% of design speed
-        'density': 0.00237717,       # Air density at altitude
-        'alpha': 0,     # Initial angle of attack
-        'sideslip': 0               # No sideslip
-    }
     aircraft_params = aircraft_to_parameters(aircraft)
     # supress runtime warnings until the optimization is complete
     warnings.filterwarnings("ignore")
@@ -362,18 +360,17 @@ if __name__ == "__main__":
     print(f"Vertical Tail Volume Ratio: {aircraft_params['vertical_tail_area'] * aircraft_params['vertical_tail_arm'] / (aircraft_params['wing_area'] * aircraft_params['wingspan']):.3f}")
 
     # Run optimization and analyze results
-    result = optimize_stability(aircraft, flight_conditions)
-    final_analysis = analyze_final_parameters(result, aircraft, flight_conditions)
+    result = optimize_stability(aircraft)
+    final_analysis = analyze_final_parameters(result, aircraft)
 
     # Plot the results using the optimized parameters
     if result.success:
-
         print("Optimization successful")
         # Create a copy of the final parameters for plotting
         plot_params = final_analysis['final_parameters']
         
         # Generate stability plots
-        fig = plot_stability_derivatives(plot_params, flight_conditions, np.radians(np.arange(-10, 10, 0.1)))
+        fig = plot_stability_derivatives(plot_params, np.radians(np.arange(-10, 10, 0.1)))
         plt.savefig("assets/stability_optimization_results.png")
         plt.close()
         
@@ -382,7 +379,7 @@ if __name__ == "__main__":
         # save the aircraft to a json file
         with open("assets/aircraft.json", "w") as f:
             json.dump(aircraft.to_dict(), f, indent=4)
-        plot_aircraft = False
+        plot_aircraft = True
         if plot_aircraft:
             # plot the aircraft orthographic view
             obj = aircraft.plot()

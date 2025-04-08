@@ -18,7 +18,7 @@ from aircraft_design.final_design.final_cabin import Cabin
 from aircraft_design.final_design.final_fuselage import Fuselage
 from aircraft_design.final_design.final_tails import HorizontalTail, VerticalTail
 from aircraft_design.components.propulsion.engine import Engine
-
+from aircraft_design.components.propulsion.fuel_tanks import FuelTank
 
 class Aircraft(Component):
     """Main aircraft component that combines wing, cabin, and fuselage"""
@@ -33,8 +33,7 @@ class Aircraft(Component):
         
         # Create wing
         self.wing = Wing(
-            nose_length=self.fuselage.nose_length,
-            tall_fuselage_length=self.fuselage.tall_fuselage_length
+            wing_tip_position = 115
         )
         self.add_child(self.wing)
         
@@ -44,9 +43,9 @@ class Aircraft(Component):
         self.cabin.cabin_interior.geometry.position = Position(
             x=self.fuselage.nose_length + 10,  # Position cabin after nose section
             y=-self.cabin.cabin_width / 2,  # Position cabin at the centerline of the aircraft
-            z=self.fuselage.tall_fuselage_height / 2  # Position cabin at the center of the tall section height
+            z=9  # Position cabin at the center of the tall section height
         )
-        #self.add_child(self.cabin)
+        self.add_child(self.cabin)
         
         # Create horizontal tail
         htail_position = Position(
@@ -57,7 +56,6 @@ class Aircraft(Component):
         self.horizontal_tail = HorizontalTail(
             position=htail_position,
             wing_ref=self.wing,
-            volume_ratio=0.7  # This value is now just for reference, as we're using hardcoded dimensions
         )
         self.add_child(self.horizontal_tail)
         
@@ -70,7 +68,6 @@ class Aircraft(Component):
         self.vertical_tail = VerticalTail(
             position=vtail_position,
             wing_ref=self.wing,
-            volume_ratio=0.08  # This value is now just for reference, as we're using hardcoded dimensions
         )
         self.add_child(self.vertical_tail)
         
@@ -78,9 +75,10 @@ class Aircraft(Component):
         # Engine parameters
         engine_mass = 20000  # lbs
         engine_radius = 14.0/2  # ft
-        engine_length = 12.0  # ft
+        engine_length = 19.0  # ft
         engine_thrust = 26710  # lbs
 
+        self.engines = []
         # Calculate engine positions (two on each wing)
         wing_span = self.wing.geometry.parameters['span']
         engine_y_positions = [
@@ -92,13 +90,12 @@ class Aircraft(Component):
 
         # Create and position engines
         for i, y_pos in enumerate(engine_y_positions):
-            engine = Engine(f"engine_{i+1}")
+            engine = Engine(f"engine_{i+1}", engine_thrust)
             
             # Configure engine geometry
             engine.geometry.parameters.update({
                 'radius': engine_radius,
                 'length': engine_length,
-                'thrust': engine_thrust
             })
             
             
@@ -117,7 +114,7 @@ class Aircraft(Component):
             
             
             engine.geometry.position = Position(
-                x= 20 + x_sweep_offset,  # Position engines relative to wing leading edge, adjusted for sweep
+                x= -5 + x_sweep_offset,  # Position engines relative to wing leading edge, adjusted for sweep
                 y=y_pos,  # Position on wing
                 z=z_dihedral_offset  # Position adjusted for wing dihedral
             )
@@ -126,7 +123,7 @@ class Aircraft(Component):
             # Add mass feature to engine
             engine.add_feature(MassFeature(
                 mass=engine_mass,
-                center_of_gravity=[engine_length/2, 0, 0],  # CG at engine center
+                center_of_gravity=[engine_length/2, engine_radius, engine_radius],  # CG at engine center
                 ixx=engine_mass * (engine_radius**2 + engine_length**2/4) / 4,  # Simplified inertia calculations
                 iyy=engine_mass * (engine_radius**2 + engine_length**2/4) / 4,
                 izz=engine_mass * engine_radius**2 / 2
@@ -136,9 +133,7 @@ class Aircraft(Component):
             engine.add_analysis(MassAnalysis())
             
             self.wing.add_child(engine)
-            
-            print(f"engine.position: {engine.get_global_position()}")
-        print(f"wing.position: {self.wing.get_global_position()}")
+            self.engines.append(engine)
         # Add mass analysis
         self.add_analysis(MassAnalysis())
     
@@ -205,6 +200,18 @@ class Aircraft(Component):
 if __name__ == "__main__":
     # Create an aircraft instance
     aircraft = Aircraft()
+    # empty all fuel tanks
+    aircraft.wing.set_fuel_configuration("empty")
+    for child in aircraft.wing.children:
+        if isinstance(child, FuelTank):
+            child.set_fill_level(0.0)
+    # Empty horizontal tail tanks
+    for child in aircraft.horizontal_tail.children:
+        if isinstance(child, FuelTank):
+            child.set_fill_level(0.0)
+    for child in aircraft.vertical_tail.children:
+        if isinstance(child, FuelTank):
+            child.set_fill_level(0.0)
     
     
     # Get mass properties
@@ -246,10 +253,11 @@ if __name__ == "__main__":
     fig_top = plt.figure(figsize=(15, 10))
     ax = fig_top.add_subplot(111)
     _, ax = plot_top_view(aircraft_obj, fig=fig_top, ax=ax)
-    plot_cg(ax, mass_props['cg_x'], mass_props['cg_y'], 
+    plot_cg(ax, mass_props['cg_x'], 0, 
             color='red', markersize=15, label='Aircraft CG')
     
     # Add text annotation
+    """
     annotation_text = (
         f"Total Mass: {mass_props['total_mass']:.0f} lbs\n"
         f"CG: ({mass_props['cg_x']:.2f}, {mass_props['cg_y']:.2f}, {mass_props['cg_z']:.2f}) ft\n"
@@ -259,7 +267,7 @@ if __name__ == "__main__":
     ax.annotate(annotation_text, 
                xy=(0.05, 0.05), xycoords='axes fraction',
                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", alpha=0.8))
-    
+    """
     ax.set_title("Aircraft - Top View")
     ax.set_aspect('equal')
     ax.legend(loc='upper right')
@@ -287,7 +295,7 @@ if __name__ == "__main__":
     fig_front = plt.figure(figsize=(10, 10))
     ax = fig_front.add_subplot(111)
     _, ax = plot_front_view(aircraft_obj, fig=fig_front, ax=ax)
-    plot_cg(ax, mass_props['cg_y'], mass_props['cg_z'], 
+    plot_cg(ax, 0, mass_props['cg_z'], 
             color='red', markersize=15, label='Aircraft CG')
     
     ax.set_title("Aircraft - Front View")

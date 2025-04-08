@@ -14,6 +14,14 @@ class Position:
     y: float = 0.0  # Positive right
     z: float = 0.0  # Positive up
 
+    def __add__(self, other: 'Position') -> 'Position':
+        """Add two positions together"""
+        return Position(
+            x=self.x + other.x,
+            y=self.y + other.y,
+            z=self.z + other.z
+        )
+
 @dataclass
 class Orientation:
     """Orientation relative to parent component in degrees"""

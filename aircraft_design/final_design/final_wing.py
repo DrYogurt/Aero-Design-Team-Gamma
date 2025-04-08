@@ -4,163 +4,16 @@ from aircraft_design.analysis.mass_analysis import MassFeature, MassAnalysis
 from aircraft_design.components.aerodynamics.wing_geometry import WaypointWingGeometry
 from aircraft_design.components.aerodynamics.basic_aero import AerodynamicComponent
 from aircraft_design.core.plotting import plot_orthographic_views, create_box, Object3D
+from aircraft_design.components.propulsion.fuel_tanks import FuelTank, FuelTankGeometry
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-class FuelTankGeometry(Geometry):
-    """Geometry for a fuel tank"""
-    def __init__(self):
-        super().__init__()
-        self.parameters.update({
-            'length': 0.0,
-            'width': 0.0,
-            'front_height': 0.0,
-            'back_height': 0.0,
-            'fuel_density': 50.0,
-            'empty': False
-        })
-    def create_object(self) -> Object3D:
-        """Create a 3D object representation of this geometry"""
-        obj = Object3D()
-        
-        # Create a box shape for the tank using the average height
-        avg_height = (self.parameters['front_height'] + self.parameters['back_height']) / 2
-        tank_shape = create_box(
-            width=self.parameters['width'],
-            length=self.parameters['length'],
-            height=avg_height
-        )
-        
-        obj.add_shape(tank_shape)
-        return obj
-    
-    def validate(self) -> bool:
-        """Validate the geometry parameters"""
-        return all(v >= 0 for v in [
-            self.parameters['length'],
-            self.parameters['width'],
-            self.parameters['front_height'],
-            self.parameters['back_height']
-        ])
-        
-    
-
-class FuelTank(Component):
-    """A fuel tank component with trapezoidal volume and mass analysis"""
-    
-    def __init__(self, 
-                 length: float,
-                 front_height: float,
-                 back_height: float,
-                 width: float,
-                 fuel_density: float = 50.0,  # lb/ft^3, typical for aviation fuel
-                 empty: bool = False):
-        """
-        Initialize a fuel tank with trapezoidal volume
-        
-        Args:
-            length: Length of the tank in feet
-            front_height: Height at front of tank in feet
-            back_height: Height at back of tank in feet
-            width: Width of the tank in feet
-            fuel_density: Density of the fuel in lb/ft^3
-            empty: Whether the tank is empty
-        """
-        super().__init__(name="fuel_tank")
-        
-        # Store basic parameters
-        self.length = length
-        self.front_height = front_height
-        self.back_height = back_height
-        self.width = width
-        self.fuel_density = fuel_density
-        self.empty = empty
-        
-        # Calculate volume (trapezoidal prism)
-        self.volume = (front_height + back_height) / 2 * length * width
-        
-        # Calculate mass based on volume and density
-        self.fuel_mass = 0.0 if empty else self.volume * fuel_density
-        
-        # Calculate center of gravity (assuming uniform density)
-        # For a trapezoidal prism, CG is at the centroid
-        cg_x = length / 2
-        cg_y = width / 2
-        cg_z = (front_height + back_height) / 3  # Height of centroid for trapezoid
-        
-        # Add mass feature
-        self.add_feature(MassFeature(
-            mass=self.fuel_mass,
-            center_of_gravity=[cg_x, cg_y, cg_z],
-            ixx=self._calculate_ixx(),
-            iyy=self._calculate_iyy(),
-            izz=self._calculate_izz()
-        ))
-        
-        # Add mass analysis
-        self.add_analysis(MassAnalysis())
-        
-        # Create and configure geometry
-        self.geometry = FuelTankGeometry()
-        self.geometry.parameters.update({
-            'length': length,
-            'width': width,
-            'front_height': front_height,
-            'back_height': back_height,
-            'fuel_density': fuel_density,
-            'empty': empty
-        })
-    
-    def _calculate_ixx(self) -> float:
-        """Calculate moment of inertia about x-axis"""
-        # Simplified calculation for rectangular prism approximation
-        return self.fuel_mass * (self.width**2 + self.front_height**2) / 12
-    
-    def _calculate_iyy(self) -> float:
-        """Calculate moment of inertia about y-axis"""
-        # Simplified calculation for rectangular prism approximation
-        return self.fuel_mass * (self.length**2 + self.front_height**2) / 12
-    
-    def _calculate_izz(self) -> float:
-        """Calculate moment of inertia about z-axis"""
-        # Simplified calculation for rectangular prism approximation
-        return self.fuel_mass * (self.length**2 + self.width**2) / 12
-    
-    def set_empty(self, empty: bool) -> None:
-        """Set whether the tank is empty and update mass accordingly"""
-        self.empty = empty
-        self.fuel_mass = 0.0 if empty else self.volume * self.fuel_density
-        
-        # Update mass feature
-        for feature in self.features:
-            if isinstance(feature, MassFeature):
-                feature.parameters["mass"] = self.fuel_mass
-                break
-    
-    def plot(self) -> Object3D:
-        """Create a 3D visualization of the fuel tank"""
-        tank_obj = self.geometry.create_object()
-        
-        # Set color based on empty state
-        tank_obj.metadata['color'] = 'red' if self.empty else 'green'
-        
-        # Get the global position of the component
-        global_pos = self.get_global_position()
-        
-        # Apply the global position to all shapes in the tank object
-        for shape in tank_obj.shapes:
-            shape.vertices = shape.vertices.astype(np.float64)
-            shape.vertices += global_pos
-        
-        return tank_obj
-
-class Wing(AerodynamicComponent):
+class Wing(Component):
     """Main wing component with integrated fuel tanks"""
     
     def __init__(self, 
-                 nose_length: float = 20.0,
-                 tall_fuselage_length: float = 50.0,
+                wing_tip_position: float,
                  fuel_configuration: str = "full"):
         """
         Initialize the main wing with integrated fuel tanks
@@ -183,11 +36,13 @@ class Wing(AerodynamicComponent):
             'span': 315.0,  # Wing span in feet
             'le_sweep': 40.0,  # Leading edge sweep in degrees
             'dihedral': 5.0,  # Dihedral angle in degrees
+            'root_chord': 50.0,  # Root chord in feet
+            'tip_chord': 10.0,  # Tip chord in feet
         })
         
         # Wing geometry parameters
-        root_chord = 49.53
-        tip_chord = 9.91
+        root_chord = 50
+        tip_chord = 10
         thickness_ratio = 0.14
         
         # Add waypoints from root to tip
@@ -196,7 +51,7 @@ class Wing(AerodynamicComponent):
         
         # Set wing position
         wing_position = Position(
-            x=112,  # Position wing in the middle of the tall fuselage section
+            x=wing_tip_position,  # Position wing in the middle of the tall fuselage section
             y=0,
             z=0.14 * root_chord  # Align with the middle of the fuselage
         )
@@ -204,45 +59,47 @@ class Wing(AerodynamicComponent):
         self.geometry = wing_geom
         
         # Store properties for child positioning
-        self.nose_length = nose_length
-        self.tall_fuselage_length = tall_fuselage_length
+        self.wing_tip_position = wing_tip_position
         self.root_chord = root_chord
         
         # Add fuel tanks as child components
         self._add_fuel_tanks()
 
+        # Add control surfaces
+        self._add_control_surfaces()
+
         # Add mass
         self._populate_mass_analysis()
 
-    
     def _add_fuel_tanks(self):
         """Add four fuel tanks to the wing"""
         # Tank dimensions in feet
-        tank_length = 15.0  # Reduced from 20.0
-        tank_width = 30.0   # Reduced from 50.0
-        tank_front_height = 3.0  # Reduced from 5.0
-        tank_back_height = 2.0   # Reduced from 3.0
+        tank_width = 65
         
         # Wing position in feet
-        wing_x = self.nose_length + self.tall_fuselage_length
+        wing_x = self.wing_tip_position
         wing_z = 0.14 * self.root_chord
         
-        # Determine tank states based on configuration
-        is_empty = {
-            "full": False,
-            "empty": True,
-            "half": False  # We'll handle half differently
-        }[self.fuel_configuration]
+        # Determine fill levels based on configuration
+        fill_levels = {
+            "full": 1.0,
+            "empty": 0.0,
+            "half": 0.5
+        }
+        base_fill_level = fill_levels[self.fuel_configuration]
 
         tank_count = 0
         for side in ['left', 'right']:
             for position in ['front', 'back']:
+                # For half configuration, only fill the first two tanks
+                fill_level = 0.0 if (self.fuel_configuration == "half" and tank_count >= 2) else base_fill_level
+                
                 tank = FuelTank(
-                    length=tank_length,
-                    front_height=tank_front_height,
-                    back_height=tank_back_height,
+                    length=(self.root_chord*.32 if position == 'front' else self.geometry.parameters['tip_chord']),
+                    front_height=(self.root_chord*.10 if position == 'front' else self.geometry.parameters['tip_chord']*.13), #13% of length
+                    back_height=(self.root_chord*.10 if position == 'front' else self.geometry.parameters['tip_chord']*.13), #10% of length
                     width=tank_width,
-                    empty=(is_empty or (self.fuel_configuration == "half" and tank_count >= 2))
+                    fill_level=fill_level
                 )
                 tank_count += 1
                 tank.geometry = FuelTankGeometry()
@@ -250,30 +107,80 @@ class Wing(AerodynamicComponent):
                 tank.name = f"fuel_tank_{side}_{position}"
                 
                 # Position along wing span (y-axis)
-                y_offset = 30.0 if side == 'left' else -30.0  # Reduced from 50.0
+                y_offset = (tank_width / 2 if position == 'front' else 3*tank_width / 2)*(1 if side == 'left' else -1) + (tank_width / 2 if side == 'left' else -tank_width / 2)
                 
                 # Position along wing chord (x-axis)
                 # Position tanks at 25% and 60% of local chord
-                local_chord = self.root_chord  # Simplified: use root chord for all tanks
-                x_offset = 0.25 * local_chord if position == 'front' else 0.60 * local_chord
                 
                 # Adjust x position for sweep
                 sweep_rad = np.radians(40.0)  # wing sweep in radians
                 sweep_offset = abs(y_offset) * np.tan(sweep_rad)
-                x_with_sweep = x_offset + sweep_offset
+                x_with_sweep = sweep_offset
                 
                 # Z-offset (height) - position tanks inside the wing
-                z_offset = wing_z - 0.5  # Reduced from 1.0 to bring tanks closer to wing center
+                z_offset = abs(y_offset) * np.tan(np.radians(self.geometry.parameters['dihedral']))
                 
                 # Set position directly in feet
                 tank.geometry.position = Position(
-                    x=wing_x + x_with_sweep,  # Add wing x position plus chord position
+                    x=x_with_sweep,  # Add wing x position plus chord position
                     y=y_offset,               # Y position along span
                     z=z_offset                # Z position (height)
                 )
-                
                 self.add_child(tank)
-    
+
+    def _add_control_surfaces(self):
+        """Add flaps and ailerons to the wing"""
+        # Flap parameters
+        self.flap_start = 0.13  # Start at 10% of half span
+        self.flap_end = self.flap_start + .6   # End at 60% of half span
+        self.flap_chord_ratio = 0.3  # Flap is 30% of local chord
+        
+        # Aileron parameters
+        self.aileron_start = self.flap_end +.005  # Start at 60% of half span
+        self.aileron_end = 0.95    # End at 90% of half span
+        self.aileron_chord_ratio = 0.25  # Aileron is 25% of local chord
+        
+        # Calculate control surface areas
+        self._calculate_control_surface_areas()
+
+    def _calculate_control_surface_areas(self):
+        """Calculate the areas of flaps and ailerons"""
+        # Get wing parameters
+        span = self.geometry.parameters['span']
+        root_chord = self.root_chord
+        tip_chord = self.geometry.parameters['tip_chord']
+        
+        # Calculate half span positions
+        half_span = span / 2
+        flap_start_y = self.flap_start * half_span
+        flap_end_y = self.flap_end * half_span
+        aileron_start_y = self.aileron_start * half_span
+        aileron_end_y = self.aileron_end * half_span
+        #print(f"flap_start_y: {flap_start_y}, flap_end_y: {flap_end_y}, aileron_start_y: {aileron_start_y}, aileron_end_y: {aileron_end_y}")
+        
+        # Calculate chord lengths at control surface boundaries
+        def chord_at_y(y):
+            return root_chord * (1 - y/half_span) + tip_chord * (y/half_span)
+        
+        # Calculate flap area (trapezoidal integration)
+        flap_chord_start = chord_at_y(flap_start_y)
+        flap_chord_end = chord_at_y(flap_end_y)
+        flap_span = flap_end_y - flap_start_y
+        flap_area = (flap_chord_start + flap_chord_end) * flap_span * self.flap_chord_ratio
+        
+        # Calculate aileron area (trapezoidal integration)
+        aileron_chord_start = chord_at_y(aileron_start_y)
+        aileron_chord_end = chord_at_y(aileron_end_y)
+        aileron_span = aileron_end_y - aileron_start_y
+        aileron_area = (aileron_chord_start + aileron_chord_end) * aileron_span * self.aileron_chord_ratio
+        
+        # Store areas (multiply by 2 for both sides)
+        self.flap_area = flap_area
+        self.aileron_area = aileron_area
+        
+        # Calculate total control surface area
+        self.total_control_surface_area = self.flap_area + self.aileron_area
+
     def set_fuel_configuration(self, config: str):
         """
         Set the fuel configuration for all tanks
@@ -282,11 +189,19 @@ class Wing(AerodynamicComponent):
             config: One of "full", "empty", or "half"
         """
         self.fuel_configuration = config
+        fill_levels = {
+            "full": 1.0,
+            "empty": 0.0,
+            "half": 0.5
+        }
+        base_fill_level = fill_levels[config]
+        
         tank_count = 0
         for child in self.children:
             if isinstance(child, FuelTank):
-                is_empty = (config == "empty" or (config == "half" and tank_count >= 2))
-                child.set_empty(is_empty)
+                # For half configuration, only fill the first two tanks
+                fill_level = 0.0 if (config == "half" and tank_count >= 2) else base_fill_level
+                child.set_fill_level(fill_level)
                 tank_count += 1
 
     def _populate_mass_analysis(self):
@@ -326,19 +241,19 @@ class Wing(AerodynamicComponent):
     
     def plot(self, *args, **kwargs) -> Object3D:
         """Create a 3D visualization of the wing"""
-        # Get the wing's aerodynamic visualization
-        wing_obj = self.plot()
-        wing_obj.metadata['color'] = 'gray'  # Set wing color
+        # Create colors dictionary if not provided
+        colors_dict = kwargs.get('colors_dict', {})
         
-        # Plot all child components (fuel tanks)
+        # Add colors for fuel tanks if not already specified
         for child in self.children:
-            if hasattr(child, 'plot'):
-                child_obj = child.plot()
-                # Add all shapes from the child object
-                for shape in child_obj.shapes:
-                    wing_obj.add_shape(shape)
+            if isinstance(child, FuelTank) and child.name not in colors_dict:
+                colors_dict[child.name] = child.color
         
-        return wing_obj
+        # Update kwargs with our modified colors_dict
+        kwargs['colors_dict'] = colors_dict
+        
+        # Get the wing's visualization using parent's plot method
+        return super().plot(*args, **kwargs)
 
     def plot_section(self, *args, **kwargs) -> Object3D:
         """Create a 3D visualization of the wing section"""
@@ -373,9 +288,10 @@ class Wing(AerodynamicComponent):
 
 if __name__ == "__main__":
     # Create a wing instance
-    wing = Wing()
+    wing = Wing(wing_tip_position=75)
     
     # Print fuel tank information
+    """
     print("\n=== Fuel Tank Information ===")
     for tank in wing.children:
         if isinstance(tank, FuelTank):
@@ -383,7 +299,14 @@ if __name__ == "__main__":
             print(f"Dimensions: {tank.length:.1f}ft x {tank.width:.1f}ft x {tank.front_height:.1f}ft (front) x {tank.back_height:.1f}ft (back)")
             print(f"Volume: {tank.volume:.1f} ft³")
             print(f"Position: ({tank.geometry.position.x:.1f}, {tank.geometry.position.y:.1f}, {tank.geometry.position.z:.1f})")
-            print(f"Empty: {tank.empty}")
+            print(f"Fill Level: {tank.fill_level}")
+    """
+    # Print control surface information
+    print("\n=== Control Surface Information ===")
+    print(f"Flap Area: {wing.flap_area:.1f} ft²")
+    print(f"Aileron Area: {wing.aileron_area:.1f} ft²")
+    print(f"Total Control Surface Area: {wing.total_control_surface_area:.1f} ft²")
+    print(f"Control Surface Area Ratio: {wing.total_control_surface_area/wing.wing_area:.3f}")
     
     # run the mass analysis
     wing.run_analysis(analysis_names="mass_analysis")
@@ -397,7 +320,7 @@ if __name__ == "__main__":
     print(f"  Ixx: {results['total_ixx']:.0f} lbs-ft²")
     print(f"  Iyy: {results['total_iyy']:.0f} lbs-ft²")
     print(f"  Izz: {results['total_izz']:.0f} lbs-ft²")
-
+    """
     # print the total fuel volume and mass
     total_fuel_volume = 0.0
     total_fuel_mass = 0.0
@@ -407,7 +330,7 @@ if __name__ == "__main__":
             total_fuel_mass += tank.fuel_mass
     print(f"Total Fuel Volume: {total_fuel_volume:.0f} ft³")
     print(f"Total Fuel Mass: {total_fuel_mass:.0f} lbs")
-
+    """
     # Make one tank empty for visualization
     #wing.children[0].set_empty(True)
     
@@ -419,7 +342,7 @@ if __name__ == "__main__":
     fig, (ax_top, ax_side, ax_front) = plot_orthographic_views(wing_obj, fig=fig)
     
     # Add title and adjust layout
-    plt.suptitle("Wing with Fuel Tanks", fontsize=16)
+    plt.suptitle("Wing with Fuel Tanks and Control Surfaces", fontsize=16)
     plt.tight_layout()
     
     # Save the plot
@@ -427,3 +350,13 @@ if __name__ == "__main__":
     
     # Close the plot
     plt.close()
+
+    # Test tank visualization
+    print("\n=== Testing Single Tank Visualization ===")
+    test_tank = FuelTank(
+        length=30.0,
+        front_height=3.0,
+        back_height=2.0,
+        width=40.0,
+        fill_level=0.5
+    )
