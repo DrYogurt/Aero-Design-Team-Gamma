@@ -203,6 +203,19 @@ class Aircraft(Component):
         )
         self.add_child(rear_gear_right)
 
+        # Add point mass 30 feet back from nose in center of fuselage
+        point_mass = MassFeature(
+            mass=2e5,  # 1000 lbs
+            center_of_gravity=[30, 0, 0],  # 30 feet back from nose, centered in y and z
+            ixx=0,  # Point mass has negligible moments of inertia
+            iyy=0,
+            izz=0,
+            ixy=0,
+            ixz=0,
+            iyz=0
+        )
+        self.add_feature(point_mass)
+
         # Add mass analysis
         self.add_analysis(MassAnalysis())
     
