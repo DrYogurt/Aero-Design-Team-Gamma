@@ -230,6 +230,12 @@ class WaypointWingGeometry(AerodynamicGeometry):
             
         return area
 
+    @property
+    def aspect_ratio(self) -> float:
+        """Calculate aspect ratio using waypoint-based area calculation"""
+        if self.area <= 0:
+            return 0.0
+        return self.parameters['span']**2 / self.area
 
     def validate(self) -> bool:
         """Validate the waypoint geometry"""

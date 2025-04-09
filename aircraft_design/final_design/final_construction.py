@@ -34,7 +34,7 @@ class Aircraft(Component):
         
         # Create wing
         self.wing = Wing(
-            wing_tip_position = 75
+            wing_tip_position = 85
         )
         self.add_child(self.wing)
         

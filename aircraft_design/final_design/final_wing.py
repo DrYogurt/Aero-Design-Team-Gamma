@@ -34,7 +34,7 @@ class Wing(Component):
         # Set wing parameters
         wing_geom.parameters.update({
             'span': 315.0,  # Wing span in feet
-            'le_sweep': 40.0,  # Leading edge sweep in degrees
+            'le_sweep': 35.0,  # Leading edge sweep in degrees
             'dihedral': 5.0,  # Dihedral angle in degrees
             'root_chord': 50.0,  # Root chord in feet
             'tip_chord': 10.0,  # Tip chord in feet

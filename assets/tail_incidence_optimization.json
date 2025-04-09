@@ -1,0 +1,16 @@
+{
+    "full_fuel": {
+        "tail_incidence_deg": 0.1,
+        "static_margin": 0.42936601988046785,
+        "success": true,
+        "message": "Optimization terminated successfully.",
+        "cost": 0.0012184696791468343
+    },
+    "empty_fuel": {
+        "tail_incidence_deg": 0.1,
+        "static_margin": 1.007810918202908,
+        "success": true,
+        "message": "Optimization terminated successfully.",
+        "cost": 0.0012184696791468343
+    }
+}

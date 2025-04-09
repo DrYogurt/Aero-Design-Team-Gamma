@@ -20,10 +20,10 @@ class HorizontalTail(Component):
         self.position = position
         
         # Hardcoded values from lw-jp.py
-        self.span = 100  # feet
-        self.root_chord = 30  # feet
-        self.tip_chord = 16  # feet
-        self.sweep_angle = 42.0  # degrees
+        self.span = 55  # feet
+        self.root_chord = 20  # feet
+        self.tip_chord = 10  # feet
+        self.sweep_angle = 37.0  # degrees
         self.dihedral = 0.0  # degrees
         
         # Calculate derived values
@@ -51,7 +51,7 @@ class HorizontalTail(Component):
         self.geometry.position = self.position
         
         # Set initial incidence angle (stored in orientation)
-        self.geometry.orientation = Orientation(roll=0.0, pitch=1.95, yaw=0.0)  # 2 degrees initial pitch
+        self.geometry.orientation = Orientation(roll=0.0, pitch=np.radians(2), yaw=0.0)  # 2 degrees initial pitch
         
         # Mass properties (simplified model - approximately 10% of wing mass)
         self.mass = 25e3 # ~40% of wing mass

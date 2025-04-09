@@ -1091,7 +1091,7 @@ def analyze_aircraft_stability(aircraft_name, aircraft_params):
     
     return report
 
-def finite_wing_correction(a_0, AR, sweep_angle=0, k_e=0.88):
+def finite_wing_correction(a_0, AR, sweep_angle=0, e=0.88):
     """
     Calculate finite wing lift curve slope from section lift curve slope
     
@@ -1099,13 +1099,13 @@ def finite_wing_correction(a_0, AR, sweep_angle=0, k_e=0.88):
     a_0: Section lift curve slope (typically 2pi)
     AR: Aspect ratio
     sweep_angle: Wing sweep angle (radians)
-    k_e: Empirical factor (typically 0.9)
+    e: Oswald efficiency factor
     
     Returns:
     a: Finite wing lift curve slope
     """
     # Finite wing correction
-    a = a_0 / (1 + a_0/(np.pi * AR * k_e))
+    a = a_0 / (1 + a_0/(np.pi * AR * e))
     
     return a
 

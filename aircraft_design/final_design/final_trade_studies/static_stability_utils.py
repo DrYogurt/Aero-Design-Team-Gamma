@@ -1,5 +1,7 @@
 from aircraft_design.analysis.static_stability import *
 from aircraft_design.final_design.final_construction import Aircraft
+from aircraft_design.components.propulsion.fuel_tanks import FuelTank
+from scipy.optimize import minimize
 from aircraft_design.core.plotting import plot_orthographic_views
 import matplotlib.pyplot as plt
 import json
@@ -17,13 +19,13 @@ def aircraft_to_parameters(aircraft: Aircraft):
     
     wing_zero = wing.position.x
 
-    cg_absolute_position = aircraft.get_mass_properties()['cg_x']
+    cg_absolute_position = 154 #aircraft.get_mass_properties()['cg_x']
     mac = wing.mean_aerodynamic_chord
     mean_wingtip_position = wing_zero + distance_AC_behind_quarter_chord(wing.taper_ratio, wing.parameters['span'], wing.parameters['le_sweep'])
 
     # Get tail incidence angle from orientation
-    tail_incidence_deg = htail.orientation.pitch
-    tail_incidence_rad = np.radians(tail_incidence_deg)
+    tail_incidence_rad = htail.orientation.pitch
+    #tail_incidence_rad = np.radians(tail_incidence_deg)
     aircraft_params = {
         'wing_area': wing.area,
         'wingspan': wing.parameters['span'],
@@ -36,7 +38,7 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'CD_0': 0.017,
         # Tail geometry
         'htail_area': htail.area,         # Horizontal tail area (ft^2)
-        'htail_arm': htail.position.x - mean_wingtip_position,  # Distance from leading edge of wing to horizontal tail AC (ft)
+        'htail_arm': htail.position.x + distance_AC_behind_quarter_chord(htail.taper_ratio, htail.parameters['span'], htail.parameters['sweep']) - mean_wingtip_position,  # Distance from leading edge of wing to horizontal tail AC (ft)
         'vertical_tail_area': vtail.area, # ft^2
         'vertical_tail_arm': vtail.position.x + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) - mean_wingtip_position,  # Distance from leading edge of wing to vertical tail AC (ft)
         'vertical_tail_zv': vtail.position.z + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) / np.tan(np.radians(vtail.parameters['sweep'])) - aircraft.get_mass_properties()['cg_z'],  # Vertical tail height (ft)
@@ -45,7 +47,7 @@ def aircraft_to_parameters(aircraft: Aircraft):
         # Position parameters
         'cg_position': (cg_absolute_position - mean_wingtip_position) / mac,  # CG position as fraction of MAC
         'ac_position': (wing.parameters['root_chord']/4 + mean_wingtip_position-wing_zero) / mac,        # Aerodynamic center position as fraction of MAC
-        'htail_ac_position': (htail.position.x  - mean_wingtip_position  + wing.parameters['root_chord']/4) / mac,  # Horizontal tail AC position as fraction of MAC
+        'htail_ac_position': (htail.position.x  - mean_wingtip_position  + htail.mean_aerodynamic_chord/4) / mac,  # Horizontal tail AC position as fraction of MAC
         'htail_aspect_ratio': htail.aspect_ratio,
         # Basic aerodynamic parameters
         'section_lift_slope': 2*np.pi,  # 2π per radian (theoretical)
@@ -80,7 +82,7 @@ def aircraft_to_parameters(aircraft: Aircraft):
         raise ValueError("Horizontal tail aspect ratio is 0.0")
     # Calculate derived parameters
     aircraft_params['wing_lift_slope'] = finite_wing_correction(aircraft_params['section_lift_slope'], aircraft_params['aspect_ratio'])
-    aircraft_params['tail_lift_slope'] = finite_wing_correction(aircraft_params['section_lift_slope'], htail.aspect_ratio)
+    aircraft_params['tail_lift_slope'] = finite_wing_correction(aircraft_params['section_lift_slope'], htail.aspect_ratio, e=0.2)
     
     # Calculate vertical tail aspect ratio and lift slope
     if vtail.aspect_ratio == 0.0:
@@ -91,6 +93,9 @@ def aircraft_to_parameters(aircraft: Aircraft):
     aircraft_params['d_epsilon_d_alpha'] = downwash_gradient(aircraft_params['wing_lift_slope'],aircraft_params['aspect_ratio'])
     aircraft_params['cm_ac'] = -0.1
     aircraft_params['d_epsilon_d_beta'] = 0.0
+    print(f"tail area: {htail.area}")
+    print(f"tail aspect ratio: {htail.aspect_ratio}")
+    print(f"tail lift slope: {aircraft_params['tail_lift_slope']}")
     return aircraft_params
 
 def update_aircraft_parameters(aircraft: Aircraft, design_vars):
@@ -347,46 +352,211 @@ def analyze_final_parameters(result, aircraft: Aircraft):
     
     return final_analysis
 
+def optimize_tail_area(aircraft: Aircraft):
+    """
+    Optimize tail incidence angle for both full and empty fuel configurations
+    
+    Parameters:
+    aircraft: Aircraft object
+    
+    Returns:
+    dict: Dictionary containing optimization results for both configurations
+    """
+    def trim_angle_objective(tail_incidence):
+        # Create aircraft copy
+        aircraft_copy = copy.deepcopy(aircraft)
+        
+        # Update only the tail incidence
+        design_vars = [
+            aircraft_copy.wing.geometry.position.x,  # Keep original wing position
+            tail_incidence,  # Vary tail incidence
+            aircraft_copy.horizontal_tail.geometry.taper_ratio,  # Keep original taper ratios
+            aircraft_copy.vertical_tail.geometry.taper_ratio
+        ]
+        
+        # Update aircraft with new parameters
+        aircraft_copy = update_aircraft_parameters(aircraft_copy, design_vars)
+        current_params = aircraft_to_parameters(aircraft_copy)
+        
+        # Add flight conditions
+        current_params.update({
+            'airspeed': 0.9 * 1116.45,    # 90% of design speed
+            'density': 0.00237717,       # Air density at altitude
+            'alpha': 0,     # Initial angle of attack
+            'sideslip': 0               # No sideslip
+        })
+        print('tail incidence: ', np.degrees(current_params['tail_incidence']))
+        
+        # Run stability analysis
+        stability_results = analyze_aircraft_stability("optimization", current_params)
+        
+        # Extract key stability metrics
+        static_margin = stability_results['longitudinal_stability']['static_margin']
+        trim_angle = stability_results['trim_control']['alpha_trim_1']
+        
+        # Define cost components
+        target_static_margin = 0.2  # Target 20% static margin
+        static_margin_cost = 15.0 * (static_margin - target_static_margin)**2
+        
+        # Higher penalty for unstable configurations
+        #if static_margin < 0.05:
+        #    static_margin_cost += 50.0 * (0.2 - static_margin)**2
+            
+        # Minimize trim angle
+        trim_angle_cost = (trim_angle-np.radians(2))**2
+        print('trim angle: ', np.degrees(trim_angle))
+        # Combine costs
+        cost = trim_angle_cost #+ static_margin_cost
+        
+        return cost
+    
+    # Create aircraft copies for full and empty configurations
+    aircraft_full = copy.deepcopy(aircraft)
+    aircraft_empty = copy.deepcopy(aircraft)
+
+
+    # Set full fuel configuration
+    for tank in aircraft_full.wing.children + aircraft_full.horizontal_tail.children + aircraft_full.vertical_tail.children:
+        if isinstance(tank, FuelTank):
+            tank.set_fill_level(1.0)
+    
+    # Set empty fuel configuration
+    for tank in aircraft_empty.wing.children + aircraft_empty.horizontal_tail.children + aircraft_empty.vertical_tail.children:
+        if isinstance(tank, FuelTank):
+            tank.set_fill_level(0.0)
+    
+    # Run mass analysis on both configurations
+    aircraft_full.run_analysis('mass_analysis', analyze_children=True)
+    aircraft_empty.run_analysis('mass_analysis', analyze_children=True)
+    
+    # Initial guess and bounds for tail incidence
+    x0 = np.radians(.1)  # Start with 2 degrees
+    bounds = [(0, np.radians(10))]  # Keep between 0 and 10 degrees
+    
+    # Optimize for full configuration
+    result_full = minimize(
+        lambda x: trim_angle_objective(x),
+        x0)
+    """
+    method='Nelder-Mead',
+    bounds=bounds,
+    options={
+        'disp': True,
+        'maxiter': 100,
+        'xatol': 1e-4,
+        'fatol': 1e-4
+    }
+    """
+#)
+    
+    # Optimize for empty configuration
+    result_empty = minimize(
+        lambda x: trim_angle_objective(x),
+        x0)
+    """
+        method='Nelder-Mead',
+        bounds=bounds,
+        options={
+            'disp': True,
+            'maxiter': 100,
+            'xatol': 1e-4,
+            'fatol': 1e-4
+        }
+        """
+    #)
+    # get full and empty stability results
+    stability_results_full = analyze_aircraft_stability("final", aircraft_to_parameters(aircraft_full))
+    stability_results_empty = analyze_aircraft_stability("final", aircraft_to_parameters(aircraft_empty))
+    static_margin_full = stability_results_full['longitudinal_stability']['static_margin']
+    static_margin_empty = stability_results_empty['longitudinal_stability']['static_margin']
+    
+
+    # Create results dictionary
+    results = {
+        'full_fuel': {
+            'tail_incidence_deg': np.degrees(result_full.x[0]),
+            'static_margin': static_margin_full,
+            'success': result_full.success,
+            'message': result_full.message,
+            'cost': result_full.fun
+        },
+        'empty_fuel': {
+            'tail_incidence_deg': np.degrees(result_empty.x[0]),
+            'static_margin': static_margin_empty,
+            'success': result_empty.success,
+            'message': result_empty.message,
+            'cost': result_empty.fun
+        }
+    }
+    
+    # Print results
+    print("\nOptimization Results:")
+    print("Full Fuel Configuration:")
+    print(f"Optimal Tail Incidence: {results['full_fuel']['tail_incidence_deg']:.2f} degrees")
+    print(f"Static Margin: {results['full_fuel']['static_margin']:.2f}")
+    print(f"Success: {results['full_fuel']['success']}")
+    print(f"Message: {results['full_fuel']['message']}")
+    
+    print("\nEmpty Fuel Configuration:")
+    print(f"Optimal Tail Incidence: {results['empty_fuel']['tail_incidence_deg']:.2f} degrees")
+    print(f"Static Margin: {results['empty_fuel']['static_margin']:.2f}")
+    print(f"Success: {results['empty_fuel']['success']}")
+    print(f"Message: {results['empty_fuel']['message']}")
+    
+    return results
+
 if __name__ == "__main__":
     aircraft = Aircraft()
-    aircraft_params = aircraft_to_parameters(aircraft)
     # supress runtime warnings until the optimization is complete
     warnings.filterwarnings("ignore")
-    print("Starting stability optimization...")
-    print("\nInitial aircraft parameters:")
-    print(f"Wing Position: {aircraft_params['ac_position']:.3f} MAC")
-    print(f"Tail Incidence: {np.degrees(aircraft_params['tail_incidence']):.2f} degrees")
-    print(f"Horizontal Tail Volume Ratio: {aircraft_params['htail_area'] * aircraft_params['htail_arm'] / (aircraft_params['wing_area'] * aircraft_params['mac']):.3f}")
-    print(f"Vertical Tail Volume Ratio: {aircraft_params['vertical_tail_area'] * aircraft_params['vertical_tail_arm'] / (aircraft_params['wing_area'] * aircraft_params['wingspan']):.3f}")
-
-    # Run optimization and analyze results
-    result = optimize_stability(aircraft)
-    final_analysis = analyze_final_parameters(result, aircraft)
-
-    # Plot the results using the optimized parameters
-    if result.success:
-        print("Optimization successful")
-        # Create a copy of the final parameters for plotting
-        plot_params = final_analysis['final_parameters']
-        
-        # Generate stability plots
-        fig = plot_stability_derivatives(plot_params, np.radians(np.arange(-10, 10, 0.1)))
-        plt.savefig("assets/stability_optimization_results.png")
-        plt.close()
-        
-        print("\nStability plots have been saved to 'stability_optimization_results.png'")
-
-        # save the aircraft to a json file
-        with open("assets/aircraft.json", "w") as f:
-            json.dump(aircraft.to_dict(), f, indent=4)
-        plot_aircraft = True
-        if plot_aircraft:
-            # plot the aircraft orthographic view
-            obj = aircraft.plot()
-            fig = plot_orthographic_views(obj)
-            plt.savefig("assets/aircraft_orthographic.png")
-            plt.close()
-    else:
-        print("\nOptimization was not successful. No plots were generated.")
+    print("Starting tail incidence optimization...")
+    
+    # Run optimization for both fuel configurations
+    results = optimize_tail_incidence(aircraft)
+    
+    # Save results to JSON file
+    with open("assets/tail_incidence_optimization.json", "w") as f:
+        json.dump(results, f, indent=4)
+    print("\nResults saved to 'assets/tail_incidence_optimization.json'")
+    
+    # Create aircraft with optimal tail incidence for full fuel
+    aircraft_full = copy.deepcopy(aircraft)
+    for tank in aircraft_full.wing.children + aircraft_full.horizontal_tail.children + aircraft_full.vertical_tail.children:
+        if isinstance(tank, FuelTank):
+            tank.set_fill_level(1.0)
+    
+    # Update tail incidence
+    design_vars = [
+        aircraft_full.wing.geometry.position.x,
+        np.radians(results['full_fuel']['tail_incidence_deg']),
+        aircraft_full.horizontal_tail.geometry.taper_ratio,
+        aircraft_full.vertical_tail.geometry.taper_ratio
+    ]
+    aircraft_full = update_aircraft_parameters(aircraft_full, design_vars)
+    
+    # Save full fuel configuration
+    with open("assets/aircraft_full_fuel.json", "w") as f:
+        json.dump(aircraft_full.to_dict(), f, indent=4)
+    
+    # Create aircraft with optimal tail incidence for empty fuel
+    aircraft_empty = copy.deepcopy(aircraft)
+    for tank in aircraft_empty.wing.children + aircraft_empty.horizontal_tail.children + aircraft_empty.vertical_tail.children:
+        if isinstance(tank, FuelTank):
+            tank.set_fill_level(0.0)
+    
+    # Update tail incidence
+    design_vars = [
+        aircraft_empty.wing.geometry.position.x,
+        np.radians(results['empty_fuel']['tail_incidence_deg']),
+        aircraft_empty.horizontal_tail.geometry.taper_ratio,
+        aircraft_empty.vertical_tail.geometry.taper_ratio
+    ]
+    aircraft_empty = update_aircraft_parameters(aircraft_empty, design_vars)
+    
+    # Save empty fuel configuration
+    with open("assets/aircraft_empty_fuel.json", "w") as f:
+        json.dump(aircraft_empty.to_dict(), f, indent=4)
+    
+    print("\nAircraft configurations saved to JSON files")
 
     

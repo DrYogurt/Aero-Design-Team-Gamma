@@ -1,0 +1,8 @@
+{
+    "name": "aircraft",
+    "wing_position": 75,
+    "htail_span": 100,
+    "htail_area": 2300.0,
+    "vtail_height": 50,
+    "vtail_area": 1518.75
+}
