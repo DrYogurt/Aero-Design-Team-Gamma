@@ -14,6 +14,14 @@ class Position:
     y: float = 0.0  # Positive right
     z: float = 0.0  # Positive up
 
+    def __add__(self, other: 'Position') -> 'Position':
+        """Add two positions together"""
+        return Position(
+            x=self.x + other.x,
+            y=self.y + other.y,
+            z=self.z + other.z
+        )
+
 @dataclass
 class Orientation:
     """Orientation relative to parent component in degrees"""
@@ -263,6 +271,8 @@ class Component:
             except Exception as e:
                 print(f"Error running analysis {analysis_name} on component {self.name}: {e}")
                 component_result = {"error": str(e)}
+                # throw an error
+                raise e
 
             self.analysis_results[analysis_name] = component_result
 

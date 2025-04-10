@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Union
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -149,10 +149,7 @@ class WaypointWingGeometry(AerodynamicGeometry):
     def __init__(self, waypoints: Optional[List[Dict[str, float]]] = None):
         super().__init__()
         self.waypoints: List[WaypointChord] = []
-        # Leading edge sweep is fixed, trailing edge is determined by waypoints
-        self.parameters.update({
-            'le_sweep': 0.0,  # Leading edge sweep angle in degrees
-        })
+
         
         # Initialize with provided waypoints
         if waypoints:
@@ -189,30 +186,49 @@ class WaypointWingGeometry(AerodynamicGeometry):
         
         self.waypoints.insert(insert_idx, new_waypoint)
 
-    def get_chord_at_span(self, span_fraction: float) -> Tuple[float, float]:
+    def get_chord_at_span(self, span_fraction: Union[float, np.ndarray]) -> Tuple[Union[float, np.ndarray], Union[float, np.ndarray]]:
         """Get interpolated chord and thickness at any span fraction"""
         if not self.waypoints:
             return 0.0, 0.0
         
-        # Handle endpoints
-        if span_fraction <= self.waypoints[0].span_location:
-            return self.waypoints[0].chord_length, self.waypoints[0].thickness
-        if span_fraction >= self.waypoints[-1].span_location:
-            return self.waypoints[-1].chord_length, self.waypoints[-1].thickness
+        # Convert scalar to array if needed
+        is_scalar = np.isscalar(span_fraction)
+        if is_scalar:
+            span_fraction = np.array([span_fraction])
         
-        # Find surrounding waypoints
+        # Initialize output arrays
+        chords = np.zeros_like(span_fraction)
+        thicknesses = np.zeros_like(span_fraction)
+        
+        # Handle endpoints
+        root_mask = span_fraction <= self.waypoints[0].span_location
+        tip_mask = span_fraction >= self.waypoints[-1].span_location
+        
+        chords[root_mask] = self.waypoints[0].chord_length
+        thicknesses[root_mask] = self.waypoints[0].thickness
+        chords[tip_mask] = self.waypoints[-1].chord_length
+        thicknesses[tip_mask] = self.waypoints[-1].thickness
+        
+        # Handle intermediate points
         for i in range(len(self.waypoints) - 1):
             wp1 = self.waypoints[i]
             wp2 = self.waypoints[i + 1]
-            if wp1.span_location <= span_fraction <= wp2.span_location:
+            
+            # Find points between these waypoints
+            mask = (~root_mask) & (~tip_mask) & (wp1.span_location <= span_fraction) & (span_fraction <= wp2.span_location)
+            
+            if np.any(mask):
                 # Linear interpolation
-                t = ((span_fraction - wp1.span_location) / 
+                t = ((span_fraction[mask] - wp1.span_location) / 
                      (wp2.span_location - wp1.span_location))
-                chord = wp1.chord_length + t * (wp2.chord_length - wp1.chord_length)
-                thickness = wp1.thickness + t * (wp2.thickness - wp1.thickness)
-                return chord, thickness
+                chords[mask] = wp1.chord_length + t * (wp2.chord_length - wp1.chord_length)
+                thicknesses[mask] = wp1.thickness + t * (wp2.thickness - wp1.thickness)
         
-        return 0.0, 0.0
+        # Convert back to scalar if input was scalar
+        if is_scalar:
+            return float(chords[0]), float(thicknesses[0])
+        
+        return chords#, thicknesses
 
     @property
     def area(self) -> float:
@@ -232,6 +248,7 @@ class WaypointWingGeometry(AerodynamicGeometry):
             area += dx * avg_chord
             
         return area
+
 
     def validate(self) -> bool:
         """Validate the waypoint geometry"""
@@ -350,6 +367,8 @@ class WaypointWingGeometry(AerodynamicGeometry):
             
         return total_volume
 
+    
+
     @property
     def wetted_area(self) -> float:
         """Calculate total wetted area for the wing using waypoints"""
@@ -383,6 +402,64 @@ class WaypointWingGeometry(AerodynamicGeometry):
             
         # Multiply by 2 to account for both wings
         return 2.0 * total_wetted_area
+
+    @property
+    def mean_aerodynamic_chord(self) -> float:
+        """Calculate mean aerodynamic chord for the wing using waypoints"""
+        if len(self.waypoints) < 2:
+            return super().mean_chord
+        
+        # Calculate MAC for the waypoint geometry
+        # This is a more complex calculation involving the chord distribution
+        # across the span
+        total_area = 0.0
+        total_chord_squared_integral = 0.0
+        span = self.parameters['span']
+        
+        for i in range(len(self.waypoints) - 1):
+            wp1 = self.waypoints[i]
+            wp2 = self.waypoints[i + 1]
+            
+            # Calculate section span
+            dy = (wp2.span_location - wp1.span_location) * span / 2  # Half span
+            
+            # Handle tapering using integral
+            if abs(wp1.chord_length - wp2.chord_length) < 1e-6:
+                # Constant chord section
+                section_mac = wp1.chord_length
+                section_area = wp1.chord_length * dy
+            else:
+                # Tapering section - use formula for MAC of a trapezoid
+                c1 = wp1.chord_length
+                c2 = wp2.chord_length
+                section_mac = (c1 + c2 - c1*c2/(c1 + c2)) * (2/3)
+                section_area = (c1 + c2) * dy / 2
+            
+            # Add to integrals
+            total_area += section_area
+            total_chord_squared_integral += section_area * section_mac
+            
+        # Double for both wings
+        total_area *= 2
+        total_chord_squared_integral *= 2
+        
+        return total_chord_squared_integral / total_area if total_area > 0 else 0.0
+    
+    
+    def get_basic_parameters(self) -> dict:
+        """Get basic geometric parameters including those from parent class"""
+        params = {
+            'span': self.parameters['span'],
+            'area': self.area,
+            'aspect_ratio': self.aspect_ratio,
+            'taper_ratio': self.taper_ratio,
+            'mean_chord': self.mean_chord,
+            'wetted_area': self.wetted_area,
+            'volume': self.volume,
+            'mean_aerodynamic_chord': self.mean_aerodynamic_chord,
+            'ac_position': self.ac
+        }
+        return params
 
 class TailGeometry(AerodynamicGeometry):
     """Geometry for vertical or angled tail surfaces"""
@@ -517,7 +594,9 @@ class SimpleSweptWing(WaypointWingGeometry):
         self.parameters.update({
             'span': span,
             'le_sweep': sweep,
-            'dihedral': dihedral
+            'dihedral': dihedral,
+            'root_chord': root_chord,
+            'tip_chord': tip_chord
         })
 
 class TrailingEdgeWingGeometry(AerodynamicGeometry):

@@ -21,15 +21,15 @@ class Fuselage(Component):
         # Fuselage dimensions in feet
         self.tall_fuselage_length = 50
         self.transition_length = 70
-        self.short_fuselage_length = self.tall_fuselage_length + self.transition_length + 100
+        self.short_fuselage_length = self.tall_fuselage_length + self.transition_length + 60
         
         self.tall_fuselage_height = 35
         self.short_fuselage_height = 27
         
         self.fuselage_width = 27
         
-        self.nose_length = 20
-        self.tail_length = 50
+        self.nose_length = 30
+        self.tail_length = 62
         self.tail_height = 18
         
         # Create the fuselage geometry
@@ -67,22 +67,26 @@ class Fuselage(Component):
     def _populate_mass_analysis(self):
         """Add mass analysis with dummy values (similar to final_wing.py)"""
         # Dummy values for fuselage mass analysis
-        mass_lb = 32500.45
-        cg_x_in = 950.75
-        cg_y_in = 0.0
-        cg_z_in = 120.25
+        mass_lb = 268094.78
+        cg_x_in = 1349.02
+        cg_y_in = -.27
+        cg_z_in = 30.05
 
-        ixx_lb_in2 = 28500000000.85
-        iyy_lb_in2 = 32150000000.62
-        izz_lb_in2 = 5250000000.38
-        ixy_lb_in2 = 0.0  # Symmetric about y-axis
-        ixz_lb_in2 = 285000000.72
-        iyz_lb_in2 = 0.0  # Symmetric about y-axis
+        ixx_lb_in2 = 4768008236.83 
+        ixy_lb_in2 = 57687872.85
+        ixz_lb_in2 = -8615782645.12
+        ixy_lb_in2 = 57687872.85
+        iyy_lb_in2 = 652355028347.41
+        iyz_lb_in2 = 9982748.14
+        ixz_lb_in2 = -8615782645.12
+        iyz_lb_in2 = 9982748.14
+        izz_lb_in2 = 652031439595.14
+
         
         # Create the MassFeature (converting inches to feet)
         fuselage_mass_feature = MassFeature(
             mass=mass_lb,
-            center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
+            center_of_gravity=[cg_x_in / 12 - 20, cg_y_in / 12, cg_z_in / 12],
             ixx=ixx_lb_in2 / 144,
             iyy=iyy_lb_in2 / 144,
             izz=izz_lb_in2 / 144,

@@ -182,9 +182,6 @@ class AerodynamicComponent(Component):
         super().__init__(name)
         self.geometry = AerodynamicGeometry()
         
-        # Add default analysis modules
-        self.add_analysis(OswaldEfficiencyAnalysis())
-        self.add_analysis(ParasiticDragAnalysis())
     def set_basic_geometry(self, span: float, root_chord: float, tip_chord: float, 
                          sweep: float = 0.0, dihedral: float = 0.0, twist: float = 0.0):
         """Convenience method to set basic geometric parameters"""
