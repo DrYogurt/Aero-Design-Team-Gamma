@@ -1,15 +1,15 @@
 import numpy as np
+from aircraft_design.final_design.final_construction import Aircraft
 
 
 
-
-def calculate_derivatives(plane):
+def calculate_derivatives(plane_dict, aircraft: Aircraft):
     """
     Calculate all thirty aerodynamic stability and control coefficients for an aircraft.
     
     Parameters:
     -----------
-    plane : dict
+    plane_dict : dict
         Dictionary containing aircraft parameters:
         - V0: equilibrium flight velocity [m/s]
         - rho: air density [kg/m^3]
@@ -46,29 +46,29 @@ def calculate_derivatives(plane):
         Dictionary containing all thirty stability and control coefficients
     """
     # Extract parameters
-    V0 = plane.get('V0',0) # v0 only matters if velocity derivatives are non-zero
-    S = plane['S'] # from aircraft params
-    b = plane['b'] # from aircraft params
-    c_bar = plane['c_bar'] # from aircraft params
-    c_0 = plane['c_0'] # from aircraft params
-    St = plane['St'] # from aircraft params
-    lt = plane['lt'] # from aircraft params
-    at = plane['at'] # from aircraft params
-    Sv = plane['Sv'] # from aircraft params
-    lv = plane['lv'] # from aircraft params
-    zv = plane['zv'] # from aircraft params
-    av = plane['av'] # from aircraft params
-    bv = plane['bv'] # from aircraft params
-    taper_ratio = plane['taper_ratio'] # from aircraft params
-    Gamma = plane['Gamma'] # from aircraft params
-    Lambda = plane['Lambda'] # from aircraft params
-    Tau_f = plane['Tau_f'] # from aircraft params
-    eta_f = plane['eta_f'] # from aircraft params
-    CL = plane['CL'] # from static analysis
-    CD = plane['CD'] # from static analysis
-    dCL_da = plane['dCL_da'] # from static analysis
-    dCD_da = plane['dCD_da'] # from static analysis
-    static_margin = plane['static_margin']
+    V0 = plane_dict.get('V0',0) # v0 only matters if velocity derivatives are non-zero
+    S = plane_dict['S'] # from aircraft params
+    b = plane_dict['b'] # from aircraft params
+    c_bar = plane_dict['c_bar'] # from aircraft params
+    c_0 = plane_dict['c_0'] # from aircraft params
+    St = plane_dict['St'] # from aircraft params
+    lt = plane_dict['lt'] # from aircraft params
+    at = plane_dict['at'] # from aircraft params
+    Sv = plane_dict['Sv'] # from aircraft params
+    lv = plane_dict['lv'] # from aircraft params
+    zv = plane_dict['zv'] # from aircraft params
+    av = plane_dict['av'] # from aircraft params
+    bv = plane_dict['bv'] # from aircraft params
+    taper_ratio = plane_dict['taper_ratio'] # from aircraft params
+    Gamma = plane_dict['Gamma'] # from aircraft params
+    Lambda = plane_dict['Lambda'] # from aircraft params
+    Tau_f = plane_dict['Tau_f'] # from aircraft params
+    eta_f = plane_dict['eta_f'] # from aircraft params
+    CL = plane_dict['CL'] # from static analysis
+    CD = plane_dict['CD'] # from static analysis
+    dCL_da = plane_dict['dCL_da'] # from static analysis
+    dCD_da = plane_dict['dCD_da'] # from static analysis
+    static_margin = plane_dict['static_margin']
 
     
     # Calculate volume ratios
@@ -81,10 +81,10 @@ def calculate_derivatives(plane):
     # Longitudinal Stability Coefficients
     
     # X_u - Axial force due to axial velocity
-    coefficients['C_X_u'] = -CD - V0 * plane.get('dCD_dV', 0)  # Include derivative term
+    coefficients['C_X_u'] = -CD - V0 * plane_dict.get('dCD_dV', 0)  # Include derivative term
     
     # Z_u - Normal force due to axial velocity
-    coefficients['C_Z_u'] = -CL - V0 * plane.get('dCL_dV', 0)
+    coefficients['C_Z_u'] = -CL - V0 * plane_dict.get('dCL_dV', 0)
     
     # X_w - Axial force due to normal velocity
     coefficients['C_X_alpha'] = CL - dCD_da
@@ -93,14 +93,14 @@ def calculate_derivatives(plane):
     coefficients['C_Z_alpha'] = -dCL_da - CD
     
     # M_u - Pitching moment due to axial velocity
-    coefficients['C_M_u'] = V0 * plane.get('dCM_dV', 0)  # Not negligible if specified
+    coefficients['C_M_u'] = V0 * plane_dict.get('dCM_dV', 0)  # Not negligible if specified
     
     # M_w - Pitching moment due to normal velocity
-    coefficients['C_M_alpha'] = plane.get('dCM_da', -dCL_da * (static_margin))
+    coefficients['C_M_alpha'] = plane_dict.get('dCM_da', -dCL_da * (static_margin))
     
     # X_q - Axial force due to pitch rate
     # Not negligible if tail drag is significant
-    dCD_t_da_t = plane.get('dCD_t_da_t', 0)
+    dCD_t_da_t = plane_dict.get('dCD_t_da_t', 0)
     if dCD_t_da_t != 0:
         coefficients['C_X_q'] = -VH * dCD_t_da_t * 2
     else:
@@ -113,7 +113,7 @@ def calculate_derivatives(plane):
     coefficients['C_M_q'] = -VH * (lt / c_bar) * at * 2
     
     # X_w_dot - Axial force due to rate of change of normal velocity
-    de_da = plane.get('de_da', 0.4)  # Get downwash factor from input or use typical value
+    de_da = plane_dict.get('de_da', 0.4)  # Get downwash factor from input or use typical value
     
     # Not negligible if tail drag and downwash are significant
     if dCD_t_da_t != 0 and de_da != 0:
@@ -137,10 +137,13 @@ def calculate_derivatives(plane):
     C_l_beta_dihedral = 0
     C_l_beta_sweep = 0
     C_l_beta_vtail = 0
+    trap_y = np.linspace(0, b/2, 50)
+    trap_c = aircraft.wing.geometry.get_chord_at_span(trap_y/b) * trap_y
+
     if Gamma > 0:
-        C_l_beta_dihedral = dCL_da * Gamma * c_0 * b * (1-(1-taper_ratio)/3) / S
+        C_l_beta_dihedral = -2 / (b*S) * dCL_da * Gamma * np.trapz(trap_c, trap_y)
     if Lambda > 0:
-        C_l_beta_sweep = -2*CL*np.tan(Lambda)* b *c_0 / S * (1-(1-taper_ratio)/3)
+        C_l_beta_sweep = -4*CL*np.tan(Lambda) / (b*S) * np.trapz(trap_c, trap_y)
     C_l_beta_vtail = -Vv * zv/lv * av
     
     coefficients['C_l_beta'] = C_l_beta_dihedral + C_l_beta_sweep + C_l_beta_vtail
@@ -149,33 +152,34 @@ def calculate_derivatives(plane):
     coefficients['C_N_beta'] = Vv * av
     
     # Y_p - Side force due to roll rate
-    c_v = plane.get('c_v', 0)
-    if bv > 0:
+    c_v = plane_dict.get('c_v', 0)
+    if bv > 0: # vertical tail is linearly tapered, so we can use the formula for a tapered wing
         coefficients['C_Y_p'] = -c_v/(S*b) * av * bv**2 * (1-(1-taper_ratio)/3) # getting rid of a factor of 1/2 for the 1/4 in the coefficient conversion
     else:
         coefficients['C_Y_p'] = 0  # Often negligible
     
     # L_p - Rolling moment due to roll rate
     # Simplified integration for wing contribution
-    
-    coefficients['C_l_p'] = -0.5 * (dCL_da + CD) * c_0 * b * (1-(1-taper_ratio)/4) / S
+    trap_c2 = trap_c * trap_y
+    coefficients['C_l_p'] = -4 / (S*b**2) * (dCL_da + CD) * np.trapz(trap_c2, trap_y)
     
     # N_p - Yawing moment due to roll rate
     # Simplified integration for wing contribution
-    coefficients['C_N_p'] = -0.5 * (CL - dCD_da) * c_0 * b * (1-(1-taper_ratio)/4) / S
+    coefficients['C_N_p'] = -4 / (S*b**2) * (CL - dCD_da) * np.trapz(trap_c2, trap_y)
     
     # Y_r - Side force due to yaw rate
     coefficients['C_Y_r'] = Vv * av
     
     # L_r - Rolling moment due to yaw rate
     # Wing and vertical tail contributions
-    C_l_r_wing = 2 * CL * c_0 * b * (1-(1-taper_ratio)/4) / S
+
+    C_l_r_wing = 8 / (S*b**2) * np.trapz(trap_c2, trap_y)
     C_l_r_vtail = Vv * zv/b * av
     coefficients['C_l_r'] = C_l_r_wing + C_l_r_vtail
     
     # N_r - Yawing moment due to yaw rate
     # Wing and vertical tail contributions
-    C_N_r_wing = -2 * CD * c_0 * b * (1-(1-taper_ratio)/4) / S
+    C_N_r_wing = -8 / (S*b**2) * np.trapz(trap_c2, trap_y)
     C_N_r_vtail = -Vv * lv/b * av
     coefficients['C_N_r'] = C_N_r_wing + C_N_r_vtail
     
@@ -183,9 +187,9 @@ def calculate_derivatives(plane):
     
     # X_eta - Axial force due to elevator
     # Not negligible if tail produces significant drag
-    C_L_t = plane.get('CL_t', 0)
-    e_t = plane.get('e_t', 0.8)  # Typical tail efficiency factor
-    A_t = plane.get('A_t', 4)    # Typical tail aspect ratio
+    C_L_t = plane_dict.get('CL_t', 0)
+    e_t = plane_dict.get('e_t', 0.8)  # Typical tail efficiency factor
+    A_t = plane_dict.get('A_t', 4)    # Typical tail aspect ratio
     
     if C_L_t != 0:
         coefficients['C_X_delta'] = -2 * St/S * C_L_t/(np.pi*e_t*A_t) * at * Tau_f * eta_f
@@ -203,17 +207,17 @@ def calculate_derivatives(plane):
     
     # L_xi - Rolling moment due to aileron
     # Simplified integration for aileron effect
-    y1 = plane.get('aileron_inner_location', 0.5 * b/2)  # Aileron start location
-    y2 = plane.get('aileron_outer_location', 0.9 * b/2)  # Aileron end location
+    y1 = plane_dict.get('aileron_inner_location', aircraft.wing.aileron_start * b/2)  # Aileron start location
+    y2 = plane_dict.get('aileron_outer_location', aircraft.wing.aileron_end * b/2)  # Aileron end location
     y_aileron = np.linspace(y1, y2, 50)
-    c_int = lambda y: c_0 * (y**2/2-(1-taper_ratio)* y**3 / (b/2) / 3)
-    coefficients['C_l_delta_a'] = -2/(S*b) * dCL_da * Tau_f * eta_f * (c_int(y2) - c_int(y1))
+    trap_c_a = aircraft.wing.geometry.get_chord_at_span(y_aileron/b) * y_aileron
+    coefficients['C_l_delta_a'] = -2/(S*b) * dCL_da * Tau_f * eta_f * np.trapz(trap_c_a, y_aileron)
     
     # N_xi - Yawing moment due to aileron (adverse yaw)
     # Modeled more accurately using partial derivative of CD with respect to aileron deflection
-    dCD_dxi = plane.get('dCD_dxi', 0.1 * dCL_da * Tau_f * eta_f)  # Typical estimation
+    dCD_dxi = plane_dict.get('dCD_dxi', 0.1 * dCL_da * Tau_f * eta_f)  # Typical estimation
     
-    coefficients['C_N_delta_a'] = 2/(S*b) * dCD_dxi * (c_int(y2) - c_int(y1))
+    coefficients['C_N_delta_a'] = 2/(S*b) * dCD_dxi * np.trapz(trap_c_a, y_aileron)
     
     # Y_zeta - Side force due to rudder
     coefficients['C_Y_delta_r'] = Sv/S * av * Tau_f * eta_f

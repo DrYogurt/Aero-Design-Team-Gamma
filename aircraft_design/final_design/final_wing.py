@@ -36,17 +36,18 @@ class Wing(Component):
             'span': 315.0,  # Wing span in feet
             'le_sweep': 40.0,  # Leading edge sweep in degrees
             'dihedral': 5.0,  # Dihedral angle in degrees
-            'root_chord': 50.0,  # Root chord in feet
-            'tip_chord': 10.0,  # Tip chord in feet
+            'root_chord': 70.0,  # Root chord in feet
+            'tip_chord': 7.0,  # Tip chord in feet
         })
         
         # Wing geometry parameters
-        root_chord = 50
-        tip_chord = 10
+        root_chord = 70
+        tip_chord = 7
         thickness_ratio = 0.14
         
         # Add waypoints from root to tip
         wing_geom.add_waypoint(0.0, root_chord, thickness_ratio * root_chord)    # Root
+        wing_geom.add_waypoint(0.3, root_chord*.52, thickness_ratio * root_chord*.55)    # Root
         wing_geom.add_waypoint(1.0, tip_chord, thickness_ratio * tip_chord)    # Tip
         
         # Set wing position
@@ -81,7 +82,7 @@ class Wing(Component):
         # Tank dimensions in feet
         inner_tank_width = 55
         outer_tank_width = 15
-        inner_tank_length = self.root_chord*.6
+        inner_tank_length = self.root_chord*.4
         outer_tank_length = self.root_chord*.1
 
 
@@ -99,6 +100,7 @@ class Wing(Component):
                     width=(inner_tank_width if position == 'front' else outer_tank_width),
                     fill_level=1
                 )
+                tank.color = "red"
                 tank_count += 1
                 tank.geometry = FuelTankGeometry()
                 # Set tank name for identification
@@ -130,7 +132,7 @@ class Wing(Component):
         """Add flaps and ailerons to the wing"""
         # Flap parameters
         self.flap_start = 0.13  # Start at 10% of half span
-        self.flap_end = self.flap_start + .6   # End at 60% of half span
+        self.flap_end = self.flap_start + .7   # End at 60% of half span
         self.flap_chord_ratio = 0.3  # Flap is 30% of local chord
         
         # Aileron parameters
@@ -198,7 +200,7 @@ class Wing(Component):
 
         # Create the MassFeature
         wing_box_mass_feature = MassFeature(
-            mass=mass_lb,
+            mass=mass_lb * 1.1,
             center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
             ixx=ixx_lb_in2 / 144,
             iyy=iyy_lb_in2 / 144,
@@ -274,12 +276,6 @@ if __name__ == "__main__":
     print("\n=== Fuel Tank Information ===")
     for tank in wing.children:
         if isinstance(tank, FuelTank):
-            print(f"\nTank: {tank.name}")
-            print(f"Dimensions: {tank.length:.1f}ft x {tank.width:.1f}ft x {tank.front_height:.1f}ft (front) x {tank.back_height:.1f}ft (back)")
-            print(f"Volume: {tank.volume:.1f} ft³")
-            print(f"Position: ({tank.geometry.position.x:.1f}, {tank.geometry.position.y:.1f}, {tank.geometry.position.z:.1f})")
-            
-            #print(f"Fill Level: {tank.fill_level}")
             total_fuel_volume += tank.volume
             #total_fuel_mass += tank.fuel_mass
     print(f"Total Fuel Volume: {total_fuel_volume:.0f} ft³")
@@ -287,6 +283,12 @@ if __name__ == "__main__":
         
     # Print control surface information
     print("\n=== Control Surface Information ===")
+    print(f"Flap Start: {wing.flap_start * wing.wing_span/2:.3f}")
+    print(f"Flap End: {wing.flap_end * wing.wing_span/2:.3f}")
+    print(f"Flap Chord Ratio: {wing.flap_chord_ratio:.3f}")
+    print(f"Aileron Start: {wing.aileron_start * wing.wing_span/2:.3f}")
+    print(f"Aileron End: {wing.aileron_end * wing.wing_span/2:.3f}")
+    print(f"Aileron Chord Ratio: {wing.aileron_chord_ratio:.3f}")
     print(f"Flap Area: {wing.flap_area:.1f} ft²")
     print(f"Aileron Area: {wing.aileron_area:.1f} ft²")
     print(f"Total Control Surface Area: {wing.total_control_surface_area:.1f} ft²")
@@ -298,6 +300,10 @@ if __name__ == "__main__":
     results = wing.analysis_results['mass_analysis']
 
     print(f"\n=== Wing Properties ===")
+    print(f"Wing Area: {wing.wing_area:.1f} ft²")
+    print(f"Wing Span: {wing.wing_span:.1f} ft")
+    print(f"Mean Aerodynamic Chord: {wing.mean_aerodynamic_chord:.1f} ft")
+    print(f"Aspect Ratio: {wing.aspect_ratio:.3f}")
     print(f"Total Mass: {results['total_mass']:.1f} lbs")
     print(f"CG Position: ({results['cg_x']:.2f}, {results['cg_y']:.2f}, {results['cg_z']:.2f}) ft")
     print(f"Moments of Inertia:")
@@ -315,6 +321,7 @@ if __name__ == "__main__":
     print(f"Total Fuel Volume: {total_fuel_volume:.0f} ft³")
     print(f"Total Fuel Mass: {total_fuel_mass:.0f} lbs")
     """
+
     # Make one tank empty for visualization
     #wing.children[0].set_empty(True)
     

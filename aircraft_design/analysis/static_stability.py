@@ -411,75 +411,6 @@ def effective_aspect_ratio(AR_geo):
 ### Lateral Control Functions #######################
 #####################################################
 
-def roll_moment_due_to_aileron(q, a_0, tau, eta, delta_a, y1, y2):
-    """
-    Calculate rolling moment due to aileron deflection
-    
-    Parameters:
-    q: Dynamic pressure
-    a_0: Section lift curve slope
-    tau: Aileron effectiveness parameter
-    eta: Span efficiency factor
-    delta_a: Aileron deflection
-    y1, y2: Spanwise positions of aileron
-    
-    Returns:
-    L_aileron: Rolling moment due to aileron deflection
-    """
-    # Integration along the span where the aileron is located
-    y_values = np.linspace(y1, y2, 100)
-    integrand = y_values
-    
-    # Trapezoidal integration
-    L_aileron = -q * a_0 * tau * eta * delta_a * np.trapz(integrand, y_values)
-    return L_aileron
-
-def roll_coefficient_due_to_aileron(q, S, b, a_0, tau, eta, delta_a, y1, y2):
-    """
-    Calculate roll coefficient due to aileron deflection
-    
-    Parameters:
-    q: Dynamic pressure
-    S: Wing area
-    b: Wingspan
-    a_0: Section lift curve slope
-    tau: Aileron effectiveness
-    eta: Efficiency factor
-    delta_a: Aileron deflection
-    y1, y2: Spanwise aileron positions
-    
-    Returns:
-    Cl_delta_a: Roll coefficient due to aileron
-    """
-    # Roll moment from aileron
-    L_aileron = roll_moment_due_to_aileron(q, a_0, tau, eta, delta_a, y1, y2)
-    
-    # Convert to coefficient
-    Cl_delta_a = L_aileron / (q * S * b)
-    
-    return Cl_delta_a
-
-def roll_coefficient_due_to_roll_rate(a_0, AR, p, V, lambda_ratio=1):
-    """
-    Calculate roll damping coefficient
-    
-    Parameters:
-    a_0: Section lift curve slope
-    AR: Aspect ratio
-    p: Roll rate
-    V: Airspeed
-    lambda_ratio: Taper ratio
-    
-    Returns:
-    Cl_p: Roll damping coefficient
-    """
-    b = 2 * AR * lambda_ratio
-    p_bar = p * b / (2 * V)
-    
-    # For linearly tapered wing
-    Cl_p = -a_0 * p_bar * (1 + 3*lambda_ratio) / (12 * (1 + lambda_ratio))
-    
-    return Cl_p
 
 def steady_roll_rate(Cl_delta_a, Cl_p, delta_a):
     """
@@ -704,9 +635,7 @@ def longitudinal_stability_analysis(aircraft_params):
 
     # Calculate lift components
     CL_alpha = aw + eta_t * at * (St/S) * (1 - d_epsilon_d_alpha)
-    CL_0 = -eta_t * at * (St/S) * it
     # Calculate total lift coefficient
-    CL_total = CL_alpha * (alpha - alpha_L0) + CL_0
     
     # Calculate CM_alpha
     hn = (h_w + h_l * eta_t * (St/S) * (at/aw) * (1 - d_epsilon_d_alpha)) / (1 + eta_t * (St/S) * (at/aw) * (1 - d_epsilon_d_alpha))
@@ -714,14 +643,25 @@ def longitudinal_stability_analysis(aircraft_params):
     
     # Calculate static margin
     SM = hn - h
+
+    CM_i = eta_t * at * VH
+    CL_i = -eta_t * at * (St/S)
+
+    # optimize tail incidence
+    from scipy.optimize import minimize
+    def objective(it):
+        return abs(tail_incidence_for_trim(CM_ac, CL_alpha*alpha+CL_i*it, alpha, CM_alpha, CL_alpha, CM_i, CL_i) - it)
+    result = minimize(objective, [0], method='Nelder-Mead')
+    it = result.x[0]
     
     # Calculate trim angle of attack
+    CL_0 = -eta_t * at * (St/S) * it
     CM_0 = (h_l - h) * eta_t * (St/S) * at * it + CM_ac
-    alpha_trim = -CM_0 / CM_alpha + alpha_L0  # Add zero lift angle to get absolute trim angle
     
     # Calculate Overall Moment Coefficient
     CM = CM_alpha * (alpha - alpha_L0) + CM_0
 
+    CL_total = CL_alpha * (alpha - alpha_L0) + CL_0
     CD_alpha = 2 / (np.pi * AR) * (CL_total) * CL_alpha
     CD_total = CD_alpha * (alpha - alpha_L0) + CD_0
     # Prepare results
@@ -737,7 +677,7 @@ def longitudinal_stability_analysis(aircraft_params):
         'CM_alpha': CM_alpha,
         'h_n': hn,
         'static_margin': SM,
-        'alpha_trim': alpha_trim,
+        'it': it,
         'VH': VH,
     }
     

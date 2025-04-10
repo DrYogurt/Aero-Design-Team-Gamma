@@ -86,7 +86,7 @@ class Fuselage(Component):
         # Create the MassFeature (converting inches to feet)
         fuselage_mass_feature = MassFeature(
             mass=mass_lb,
-            center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
+            center_of_gravity=[cg_x_in / 12 - 20, cg_y_in / 12, cg_z_in / 12],
             ixx=ixx_lb_in2 / 144,
             iyy=iyy_lb_in2 / 144,
             izz=izz_lb_in2 / 144,

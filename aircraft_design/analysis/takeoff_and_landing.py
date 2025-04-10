@@ -26,10 +26,11 @@ def theta_f(xf0,delta):
 delta = np.linspace(np.radians(-40), np.radians(80), 50)
 delta_cl = delta_cl(delta,theta_f(0.75,delta))
 
-plt.plot(np.degrees(delta),delta_cl)
-plt.plot(np.degrees(delta),theta_f(0.75,delta))
-plt.plot(np.degrees(delta),tau(theta_f(0.75,delta)))
+plt.plot(np.degrees(delta),delta_cl,label=r'$\Delta C_L$')
+plt.plot(np.degrees(delta),theta_f(0.75,delta),label=r'$\theta_f$')
+plt.plot(np.degrees(delta),tau(theta_f(0.75,delta)),label=r'$\tau$')
 plt.xlabel(r'$\delta$')
 plt.ylabel(r'$\Delta C_L$')
+plt.legend()
 plt.savefig('delta_cl.png')
 

@@ -21,25 +21,25 @@ def optimize_margin(desired_margin, total_fuel_percentage, aircraft):
     Returns:
     optimal_ratio: Optimal wing-to-tail fuel ratio
     """
-    def objective(wing_to_tail_ratio):
+    def objective(tail_to_wing_ratio):
         # Create aircraft copy
         aircraft_copy = copy.deepcopy(aircraft)
         
         # Calculate wing and tail fuel masses based on ratio and total fuel
         total_fuel_mass = total_fuel_percentage * (5.9e5)
-        wing_fuel_mass = total_fuel_mass / (1 + wing_to_tail_ratio)
-        tail_fuel_mass = total_fuel_mass - wing_fuel_mass
+        tail_fuel_mass = total_fuel_mass * tail_to_wing_ratio
+        wing_fuel_mass = total_fuel_mass - tail_fuel_mass
         
         # Set wing tank fill levels
         for tank in aircraft_copy.wing.children:
             if isinstance(tank, FuelTank):
-                fill_level = wing_fuel_mass / (5e5)  # Wing fuel as fraction of max
+                fill_level = wing_fuel_mass / (4.9e5)  # Wing fuel as fraction of max
                 tank.set_fill_level(fill_level)
         
         # Set tail tank fill levels
         for tank in aircraft_copy.horizontal_tail.children + aircraft_copy.vertical_tail.children:
             if isinstance(tank, FuelTank):
-                fill_level = tail_fuel_mass / (2.5e5)  # Tail fuel as fraction of max
+                fill_level = tail_fuel_mass / (1e5)  # Tail fuel as fraction of max
                 tank.set_fill_level(fill_level)
         
         # Run analysis
@@ -70,8 +70,8 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     TAIL_MAX_FUEL = 1.12e5  # lbs
     
     # Create arrays for wing and tail fuel percentages
-    wing_fuel_percentages = np.linspace(0.01, 0.3, 10)  # Wing fuel as percentage of WING_MAX_FUEL
-    tail_fuel_percentages = np.linspace(0.01, 0.3, 5)  # Tail fuel as percentage of TAIL_MAX_FUEL
+    wing_fuel_percentages = np.linspace(0.01, 1, 10)  # Wing fuel as percentage of WING_MAX_FUEL
+    tail_fuel_percentages = np.linspace(0.01, 1, 5)  # Tail fuel as percentage of TAIL_MAX_FUEL
 
     # Initialize arrays for results
     static_margins = np.zeros((len(wing_fuel_percentages), len(tail_fuel_percentages)))
@@ -79,7 +79,7 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     wing_to_tail_ratios = np.zeros_like(static_margins)
     
     #set incidence angle to 1 degree
-    aircraft.horizontal_tail.geometry.orientation.pitch = np.radians(.2)
+    #aircraft.horizontal_tail.geometry.orientation.pitch = np.radians(.2)
     # Iterate through all combinations
     for i, wing_percent in enumerate(wing_fuel_percentages):
         for j, tail_percent in enumerate(tail_fuel_percentages):        
@@ -140,7 +140,7 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     cbar.set_label('Static Margin (% MAC)')
     
     # Calculate and plot optimal margin line
-    total_fuel_percentages_line = np.linspace(0.1, .3, 10)
+    total_fuel_percentages_line = np.linspace(0.1, 1, 10)
     optimal_ratios = []
     for fuel_percent in total_fuel_percentages_line:
         optimal_ratio = optimize_margin(0.2, fuel_percent, aircraft)
@@ -187,21 +187,23 @@ def analyze_aircraft_static_stability(aircraft: Aircraft, output_filename = None
     dict: Dictionary containing all analysis results
     """
     # set total fuel to 5.9e5 lbs and distribute fuel with optimal ratio
-    total_fuel_mass = 5.9e5
-    optimal_ratio = optimize_margin(0.2, total_fuel_mass / (5e5 + 2.5e5), aircraft)
-    wing_fuel_mass = total_fuel_mass / (1 + optimal_ratio)
-    tail_fuel_mass = total_fuel_mass - wing_fuel_mass
-    
-    # set wing tank fill level
-    for tank in aircraft.wing.children:
-        if isinstance(tank, FuelTank):
-            tank.set_fill_level(wing_fuel_mass / 5e5)
-    
-    # set tail tank fill level
-    for tank in aircraft.horizontal_tail.children + aircraft.vertical_tail.children:
-        if isinstance(tank, FuelTank):
-            tank.set_fill_level(tail_fuel_mass / 2.5e5)
-    
+    optimize_fuel = False
+    if optimize_fuel: 
+        total_fuel_mass = 5.9e5
+        optimal_ratio = optimize_margin(0.2, total_fuel_mass / (5e5 + 2.5e5), aircraft)
+        wing_fuel_mass = total_fuel_mass / (1 + optimal_ratio)
+        tail_fuel_mass = total_fuel_mass - wing_fuel_mass
+        
+        # set wing tank fill level
+        for tank in aircraft.wing.children:
+            if isinstance(tank, FuelTank):
+                tank.set_fill_level(wing_fuel_mass / 5e5)
+        
+        # set tail tank fill level
+        for tank in aircraft.horizontal_tail.children + aircraft.vertical_tail.children:
+            if isinstance(tank, FuelTank):
+                tank.set_fill_level(tail_fuel_mass / 2.5e5)
+        
     
     # Run mass analysis to get current mass properties
     aircraft.run_analysis('mass_analysis', analyze_children=True)
@@ -333,8 +335,8 @@ def analyze_aircraft_dynamic_stability(aircraft: Aircraft, output_filename = Non
         'Lambda': aircraft_params['Lambda'],  # Wing sweep angle [rad]
         
         # Control surface parameters
-        'Tau_f': 0.8,  # Flap effectiveness factor
-        'eta_f': 0.9,  # Flap correction factor
+        'Tau_f': 0.5,  # Flap effectiveness factor
+        'eta_f': 1,  # Flap correction factor
         
         # Additional parameters for control derivatives
         'aileron_start': aircraft_params['aileron_inner_location'],
@@ -345,7 +347,7 @@ def analyze_aircraft_dynamic_stability(aircraft: Aircraft, output_filename = Non
         'A_t': aircraft_params['htail_aspect_ratio'],  # Tail aspect ratio
         'c_v': aircraft_params['vertical_tail_chord']  # Vertical tail chord at root
     }
-    derivatives = calculate_derivatives(stability_params)
+    derivatives = calculate_derivatives(stability_params,aircraft)
     steady_roll_rate = derivatives['C_l_delta_a'] / derivatives['C_l_p']
     print(f"Steady roll rate: {steady_roll_rate * 2 * aircraft_params['airspeed'] / aircraft_params['wingspan']}")
     return derivatives
@@ -366,5 +368,5 @@ if __name__ == "__main__":
     # Run the new analysis function
     results = analyze_aircraft_dynamic_stability(aircraft)
     for key, value in results.items():
-        print(f"{key}\n{value:.3f}")
+        print(f"{key},\t{value:.4f}")
     print("Aircraft dynamic stability analysis completed.")

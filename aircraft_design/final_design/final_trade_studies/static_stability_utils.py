@@ -36,9 +36,9 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'CD_0': 0.017,
         # Tail geometry
         'htail_area': htail.area,         # Horizontal tail area (ft^2)
-        'htail_arm': htail.position.x - mean_wingtip_position,  # Distance from leading edge of wing to horizontal tail AC (ft)
+        'htail_arm': htail.position.x - cg_absolute_position,  # Distance from leading edge of wing to horizontal tail AC (ft)
         'vertical_tail_area': vtail.area, # ft^2
-        'vertical_tail_arm': vtail.position.x + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) - mean_wingtip_position,  # Distance from leading edge of wing to vertical tail AC (ft)
+        'vertical_tail_arm': vtail.position.x + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) - cg_absolute_position,  # Distance from leading edge of wing to vertical tail AC (ft)
         'vertical_tail_zv': vtail.position.z + distance_AC_behind_quarter_chord(vtail.taper_ratio, vtail.parameters['span'], vtail.parameters['sweep']) / np.tan(np.radians(vtail.parameters['sweep'])) - aircraft.get_mass_properties()['cg_z'],  # Vertical tail height (ft)
         'vertical_tail_height': vtail.parameters['height'],
         'vertical_tail_chord': vtail.parameters['root_chord'],
@@ -52,8 +52,8 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
         
         # Efficiency factors
-        'tail_efficiency': 0.95,    # Horizontal tail efficiency factor #TODO: figure out a real value
-        'vertical_tail_efficiency': 0.95,  # Vertical tail efficiency factor
+        'tail_efficiency': 1,    # Horizontal tail efficiency factor #TODO: figure out a real value
+        'vertical_tail_efficiency': 1,  # Vertical tail efficiency factor
         
         # Control surface parameters
         'aileron_inner_location': aircraft.wing.aileron_start,  # Fraction of semi-span
@@ -88,8 +88,8 @@ def aircraft_to_parameters(aircraft: Aircraft):
     aircraft_params['vertical_tail_aspect_ratio'] = vtail.aspect_ratio
     aircraft_params['vertical_tail_lift_slope'] = finite_wing_correction(aircraft_params['section_lift_slope'], vtail.aspect_ratio)
     
-    aircraft_params['d_epsilon_d_alpha'] = downwash_gradient(aircraft_params['wing_lift_slope'],aircraft_params['aspect_ratio'])
-    aircraft_params['cm_ac'] = -0.1
+    aircraft_params['d_epsilon_d_alpha'] = downwash_gradient(aircraft_params['wing_lift_slope'],aircraft_params['aspect_ratio'], Ae0_aw=0.7, sweep_correction=1.1)
+    aircraft_params['cm_ac'] = -0.13
     aircraft_params['d_epsilon_d_beta'] = 0.0
     return aircraft_params
 
