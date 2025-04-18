@@ -98,15 +98,9 @@ def longitudinal_matrices(dimensional_params, aircraft_data):
         [0, 0]
     ]).T
 
-    # Time parameters for simulation
-    eta = 0.0175  # Elevator deflection in radians
-    tau = 0.0  # Thrust variation
-    ku = [0.0, 0.0]
-    kw = [0.0, 0.0]
-    kq = [0.0, 0.0]
-    ko = [0.0, 0.0]
+   
 
-    return a_mat, b_mat, eta, tau, ku, kw, kq, ko
+    return a_mat, b_mat
 
 
 
@@ -169,8 +163,6 @@ def lateral_directional_matrices(dimensional_params, aircraft_data):
     ]).T
 
 
-    # Control inputs
-    xi = 0.0175  # Aileron deflection in radians (approximately 1 degree)
-    zeta = 0.0   # Rudder deflection in radians
+    
 
-    return a_mat, b_mat, xi, zeta
+    return a_mat, b_mat

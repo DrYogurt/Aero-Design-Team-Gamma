@@ -87,7 +87,7 @@ class HorizontalTail(Component):
         # Stabilator parameters
         self.stabilator_start = 0.1  # Start at 10% of half span
         self.stabilator_end = 0.9    # End at 90% of half span
-        self.stabilator_chord_ratio = 0.5  # Stabilator is 30% of local chord
+        self.stabilator_chord_ratio = 0.30  # Stabilator is 30% of local chord
         
         # Calculate control surface areas
         self._calculate_control_surface_areas()

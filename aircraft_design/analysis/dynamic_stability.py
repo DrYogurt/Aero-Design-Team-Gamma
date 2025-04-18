@@ -62,8 +62,13 @@ def calculate_derivatives(plane_dict, aircraft: Aircraft):
     taper_ratio = plane_dict['taper_ratio'] # from aircraft params
     Gamma = plane_dict['Gamma'] # from aircraft params
     Lambda = plane_dict['Lambda'] # from aircraft params
-    Tau_f = plane_dict['Tau_f'] # from aircraft params
-    eta_f = plane_dict['eta_f'] # from aircraft params
+  
+    Tau_e = plane_dict['Tau_e'] # from aircraft params
+    eta_e = plane_dict['eta_e'] # from aircraft params
+    Tau_r = plane_dict['Tau_r'] # from aircraft params
+    eta_r = plane_dict['eta_r'] # from aircraft params
+    Tau_a = plane_dict['Tau_a'] # from aircraft params
+    eta_a = plane_dict['eta_a'] # from aircraft params
     CL = plane_dict['CL'] # from static analysis
     CD = plane_dict['CD'] # from static analysis
     dCL_da = plane_dict['dCL_da'] # from static analysis
@@ -192,15 +197,15 @@ def calculate_derivatives(plane_dict, aircraft: Aircraft):
     A_t = plane_dict.get('A_t', 4)    # Typical tail aspect ratio
     
     if C_L_t != 0:
-        coefficients['C_X_delta'] = -2 * St/S * C_L_t/(np.pi*e_t*A_t) * at * Tau_f * eta_f
+        coefficients['C_X_delta'] = -2 * St/S * C_L_t/(np.pi*e_t*A_t) * at * Tau_e * eta_e
     else:
         coefficients['C_X_delta'] = 0
     
     # Z_eta - Normal force due to elevator
-    coefficients['C_Z_delta'] = -St/S * at * Tau_f * eta_f
+    coefficients['C_Z_delta'] = -St/S * at * Tau_e * eta_e
     
     # M_eta - Pitching moment due to elevator
-    coefficients['C_M_delta'] = -VH * at * Tau_f * eta_f
+    coefficients['C_M_delta'] = -VH * at * Tau_e * eta_e
     
     # Y_xi - Side force due to aileron
     coefficients['C_Y_delta_a'] = 0  # Negligible for conventional aircraft
@@ -211,21 +216,21 @@ def calculate_derivatives(plane_dict, aircraft: Aircraft):
     y2 = plane_dict.get('aileron_outer_location', aircraft.wing.aileron_end * b/2)  # Aileron end location
     y_aileron = np.linspace(y1, y2, 50)
     trap_c_a = aircraft.wing.geometry.get_chord_at_span(y_aileron/b) * y_aileron
-    coefficients['C_l_delta_a'] = -2/(S*b) * dCL_da * Tau_f * eta_f * np.trapz(trap_c_a, y_aileron)
+    coefficients['C_l_delta_a'] = -2/(S*b) * dCL_da * Tau_a * eta_a * np.trapz(trap_c_a, y_aileron)
     
     # N_xi - Yawing moment due to aileron (adverse yaw)
     # Modeled more accurately using partial derivative of CD with respect to aileron deflection
-    dCD_dxi = plane_dict.get('dCD_dxi', 0.1 * dCL_da * Tau_f * eta_f)  # Typical estimation
+    dCD_dxi = plane_dict.get('dCD_dxi', 0.1 * dCL_da * Tau_a * eta_a)  # Typical estimation
     
     coefficients['C_N_delta_a'] = 2/(S*b) * dCD_dxi * np.trapz(trap_c_a, y_aileron)
     
     # Y_zeta - Side force due to rudder
-    coefficients['C_Y_delta_r'] = Sv/S * av * Tau_f * eta_f
+    coefficients['C_Y_delta_r'] = Sv/S * av * Tau_r * eta_r
     
     # L_zeta - Rolling moment due to rudder
-    coefficients['C_l_delta_r'] = Vv * zv/lv * av * Tau_f * eta_f
+    coefficients['C_l_delta_r'] = Vv * zv/lv * av * Tau_r * eta_r
     
     # N_zeta - Yawing moment due to rudder
-    coefficients['C_N_delta_r'] = -Vv * av * Tau_f * eta_f
+    coefficients['C_N_delta_r'] = -Vv * av * Tau_r * eta_r
     
     return coefficients

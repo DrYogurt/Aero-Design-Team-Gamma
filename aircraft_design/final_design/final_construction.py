@@ -59,6 +59,7 @@ class Aircraft(Component):
             y=0,
             z=self.fuselage.short_fuselage_height - 5
         )
+        #print(f"htail_position: {htail_position}")
         self.horizontal_tail = HorizontalTail(
             position=htail_position,
             wing_ref=self.wing,
@@ -75,6 +76,7 @@ class Aircraft(Component):
             y=0,
             z=self.fuselage.short_fuselage_height
         )
+        #print(f"vtail_position: {vtail_position}")
         self.vertical_tail = VerticalTail(
             position=vtail_position,
             wing_ref=self.wing,
@@ -237,7 +239,10 @@ class Aircraft(Component):
             'cg_z': aircraft_results['cg_z'],
             'ixx': aircraft_results['total_ixx'],
             'iyy': aircraft_results['total_iyy'],
-            'izz': aircraft_results['total_izz']
+            'izz': aircraft_results['total_izz'],
+            'ixy': aircraft_results['total_ixy'],
+            'ixz': aircraft_results['total_ixz'],
+            'iyz': aircraft_results['total_iyz']
         }
     
     def plot(self, *args, **kwargs) -> Object3D:
@@ -278,7 +283,10 @@ class Aircraft(Component):
                 'cg_z': results['cg_z'],
                 'ixx': results['total_ixx'],
                 'iyy': results['total_iyy'],
-                'izz': results['total_izz']
+                'izz': results['total_izz'],
+                'ixy': results['total_ixy'],
+                'ixz': results['total_ixz'],
+                'iyz': results['total_iyz']
             }
         
         return aircraft_dict
@@ -296,6 +304,12 @@ if __name__ == "__main__":
     print(f"Total Mass: {mass_props_full['total_mass']:.1f} lbs")
     print(f"CG Position: ({mass_props_full['cg_x']:.2f}, {mass_props_full['cg_y']:.2f}, {mass_props_full['cg_z']:.2f}) ft")
     
+    print(f"  Ixx: {mass_props_full['ixx']:.0f} lbs-ft²")
+    print(f"  Iyy: {mass_props_full['iyy']:.0f} lbs-ft²")
+    print(f"  Izz: {mass_props_full['izz']:.0f} lbs-ft²")
+    print(f"  Ixy: {mass_props_full['ixy']:.0f} lbs-ft²")
+    print(f"  Ixz: {mass_props_full['ixz']:.0f} lbs-ft²")
+    print(f"  Iyz: {mass_props_full['iyz']:.0f} lbs-ft²")
 
     # First test with drained tanks
     print("\n=== Aircraft Properties with Drained Tanks ===")
@@ -324,6 +338,9 @@ if __name__ == "__main__":
     print(f"  Ixx: {mass_props_drained['ixx']:.0f} lbs-ft²")
     print(f"  Iyy: {mass_props_drained['iyy']:.0f} lbs-ft²")
     print(f"  Izz: {mass_props_drained['izz']:.0f} lbs-ft²")
+    print(f"  Ixy: {mass_props_drained['ixy']:.0f} lbs-ft²")
+    print(f"  Ixz: {mass_props_drained['ixz']:.0f} lbs-ft²")
+    print(f"  Iyz: {mass_props_drained['iyz']:.0f} lbs-ft²")
 
     plot_aircraft = True
     if plot_aircraft:

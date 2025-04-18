@@ -996,7 +996,7 @@ def analyze_aircraft_stability(aircraft_name, aircraft_params):
     }
     
     # Perform lateral control analysis
-    lat_control = lateral_control_analysis(aircraft_params, control_inputs)
+    #lat_control = lateral_control_analysis(aircraft_params, control_inputs)
     
     # Perform engine-out analysis
     eng_out = engine_out_analysis(aircraft_params)
@@ -1013,7 +1013,7 @@ def analyze_aircraft_stability(aircraft_name, aircraft_params):
         'aircraft_name': aircraft_name,
         'longitudinal_stability': long_stability,
         'directional_stability': dir_stability,
-        'lateral_control': lat_control,
+        'lateral_control': None,
         'engine_out': eng_out,
         'trim_control': trim_control
     }
@@ -1022,7 +1022,7 @@ def analyze_aircraft_stability(aircraft_name, aircraft_params):
     report['stability_assessment'] = {
         'longitudinally_stable': long_stability['CM_alpha'] < 0,
         'directionally_stable': dir_stability['CN_beta'] > 0,
-        'sufficient_roll_control': lat_control['roll_performance'],
+        #'sufficient_roll_control': lat_control['roll_performance'],
         'sufficient_rudder_control': eng_out['rudder_sufficient']
     }
     

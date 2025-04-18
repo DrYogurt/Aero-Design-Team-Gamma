@@ -270,89 +270,7 @@ def analyze_aircraft_static_stability(aircraft: Aircraft, output_filename = None
             print("\nAnalysis results:")
             print(json.dumps(analysis_results, indent=4))
     
-    return analysis_results
-
-
-def analyze_aircraft_dynamic_stability(aircraft: Aircraft, output_filename = None):
-    """
-    Convert aircraft parameters from final construction to the format needed for dynamic stability analysis.
-    
-    Returns:
-        dict: Dictionary containing all parameters needed for dynamic stability analysis
-    """
-    # Create base aircraft
-    aircraft = Aircraft()
-    
-    # run static stability analysis
-    aircraft_params = aircraft_to_parameters(aircraft)
-    analysis_results = analyze_aircraft_static_stability(aircraft, None)
-
-    # Run mass analysis to get current mass properties
-    aircraft.run_analysis('mass_analysis', analyze_children=True)
-    mass_results = aircraft.analysis_results['mass_analysis']
-    
-    
-    # Create the parameter dictionary for dynamic stability analysis
-    stability_params = {
-        # Flight conditions
-        'V0': aircraft_params['airspeed'],
-        'rho': aircraft_params['density'],
-        
-        # Wing parameters
-        'S': aircraft_params['wing_area'],
-        'b': aircraft_params['wingspan'],
-        'c_bar': aircraft_params['mac'],
-        'c_0': aircraft_params['root_chord'],
-        'taper_ratio': aircraft_params['taper_ratio'],
-        
-        # Aerodynamic coefficients (placeholder values - these should be calculated or estimated)
-        'CL': analysis_results['stability_analyses']['longitudinal_stability']['CL_total'],
-        'CD': analysis_results['stability_analyses']['longitudinal_stability']['CD_total'],
-        'dCL_da': analysis_results['stability_analyses']['longitudinal_stability']['CL_alpha'],
-        'dCD_da': analysis_results['stability_analyses']['longitudinal_stability']['CD_alpha'],
-        'dCM_da': analysis_results['stability_analyses']['longitudinal_stability']['CM_alpha'],
-        
-        # Note, velocity derivatives are assumed to be zero: dCL_dV, dCD_dV, dCM_dV
-
-        # Downwash and CG parameters
-        'de_da': aircraft_params['d_epsilon_d_alpha'],  # Downwash factor
-        'static_margin': analysis_results['stability_analyses']['longitudinal_stability']['static_margin'],  # Neutral point location as fraction of c_bar
-        
-        # Horizontal tail parameters
-        'St': aircraft_params['htail_area'],
-        'lt': aircraft_params['htail_arm'],
-        'at': aircraft_params['tail_lift_slope'],  # Horizontal tail lift curve slope [1/rad]
-        
-        # Vertical tail parameters
-        'Sv': aircraft_params['vertical_tail_area'],
-        'lv': aircraft_params['vertical_tail_arm'],
-        'zv': aircraft_params['vertical_tail_zv'],  # Vertical distance from CG to vertical tail
-        'av': aircraft_params['tail_lift_slope'],  # Vertical tail lift curve slope [1/rad]
-        'bv': aircraft_params['vertical_tail_height'],  # Vertical tail span/height
-        
-        # Wing geometry parameters
-        'Gamma': aircraft_params['Gamma'],  # Wing dihedral angle [rad]
-        'Lambda': aircraft_params['Lambda'],  # Wing sweep angle [rad]
-        
-        # Control surface parameters
-        'Tau_f': 0.5,  # Flap effectiveness factor
-        'eta_f': 1,  # Flap correction factor
-        
-        # Additional parameters for control derivatives
-        'aileron_start': aircraft_params['aileron_inner_location'],
-        'y2': aircraft_params['aileron_outer_location'],
-        'dCD_dxi': 0.1,  # Change in drag coefficient with aileron deflection
-        'CL_t': 0.5,  # Tail lift coefficient
-        'e_t': 0.95,  # Tail efficiency factor
-        'A_t': aircraft_params['htail_aspect_ratio'],  # Tail aspect ratio
-        'c_v': aircraft_params['vertical_tail_chord']  # Vertical tail chord at root
-    }
-    derivatives = calculate_derivatives(stability_params,aircraft)
-    steady_roll_rate = derivatives['C_l_delta_a'] / derivatives['C_l_p']
-    print(f"Steady roll rate: {steady_roll_rate * 2 * aircraft_params['airspeed'] / aircraft_params['wingspan']}")
-    return derivatives
-
-
+    return aircraft_params, analysis_results
 
 
 if __name__ == "__main__":
@@ -365,8 +283,3 @@ if __name__ == "__main__":
     analyze_aircraft_static_stability(aircraft, "static_stability_analysis.json")
     print("Static stability analysis completed.")
     
-    # Run the new analysis function
-    results = analyze_aircraft_dynamic_stability(aircraft)
-    for key, value in results.items():
-        print(f"{key},\t{value:.4f}")
-    print("Aircraft dynamic stability analysis completed.")

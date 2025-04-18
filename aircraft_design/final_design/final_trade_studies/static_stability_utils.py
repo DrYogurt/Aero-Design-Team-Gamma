@@ -52,13 +52,13 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
         
         # Efficiency factors
-        'tail_efficiency': 1,    # Horizontal tail efficiency factor #TODO: figure out a real value
-        'vertical_tail_efficiency': 1,  # Vertical tail efficiency factor
+        'tail_efficiency': .9,    # Horizontal tail efficiency factor #TODO: figure out a real value
+        'vertical_tail_efficiency': .9,  # Vertical tail efficiency factor
         
         # Control surface parameters
         'aileron_inner_location': aircraft.wing.aileron_start,  # Fraction of semi-span
         'aileron_outer_location': aircraft.wing.aileron_end,    # Fraction of semi-span
-        'aileron_effectiveness': 1,#calculate_control_surface_effectiveness(aircraft.wing.aileron_chord_ratio, "sealed"),
+        'aileron_effectiveness': .4,#calculate_control_surface_effectiveness(aircraft.wing.aileron_chord_ratio, "sealed"),
         'max_rudder_deflection': np.radians(25),  # radians
         'rudder_effectiveness': 1,#calculate_control_surface_effectiveness(aircraft.vertical_tail.rudder_chord_ratio, "sealed"),
         

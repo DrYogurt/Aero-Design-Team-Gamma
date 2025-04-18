@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 from scipy.signal import lti, step
 import matplotlib.pyplot as plt
 
@@ -111,19 +111,20 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
         print(f"{0.0:12.4e}{0.0:12.4e}")
     
     # Characteristic equation
-    a0 = 1.0
-    b0 = -(lp + nr + yv)
-    c0 = (lp*nr - lr*np) + (nr*yv - nv*yr) + (lp*yv - lv*yp) - lo
-    d0 = (lo*nr - lr*no) + lv*(nr*yp - np*yr - yo) + nv*(lp*yr - lr*yp) + yv*(lr*np - lp*nr + lo)
-    e0 = lv*(nr*yo - no*yr) + nv*(lo*yr - lr*yo) + yv*(lr*no - lo*nr)
+    a0 = 1.0#np.float64(1.0)
+    b0 = float(-(lp + nr + yv))
+    c0 = float((lp*nr - lr*np) + (nr*yv - nv*yr) + (lp*yv - lv*yp) - lo)
+    d0 = float((lo*nr - lr*no) + lv*(nr*yp - np*yr - yo) + nv*(lp*yr - lr*yp) + yv*(lr*np - lp*nr + lo))
+    e0 = float(lv*(nr*yo - no*yr) + nv*(lo*yr - lr*yo) + yv*(lr*no - lo*nr))
 
     den = [a0, b0, c0, d0, e0]
+
     if prints:
         print("\nCharacteristic Equation: as^4+bs^3+cs^2+ds+e=0")
         print(f"{a0:12.4e}s^4{b0:+12.4e}s^3{c0:+12.4e}s^2{d0:+12.4e}s{e0:+12.4e} =0\n")
 
     # Exact roots - Need to handle complex roots and sort them
-    rd = np.roots(den)
+    rd = numpy.roots(den)
     
     # In MATLAB, cplxpair sorts complex conjugate pairs together
     # We'll implement a simple version here
@@ -143,7 +144,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
                 skip_next = False
                 continue
                 
-            if i < len(complex_roots) - 1 and abs(complex_roots[i] - np.conjugate(complex_roots[i+1])) < 1e-10:
+            if i < len(complex_roots) - 1 and abs(complex_roots[i] - numpy.conjugate(complex_roots[i+1])) < 1e-10:
                 paired_complex.append(complex_roots[i])
                 paired_complex.append(complex_roots[i+1])
                 skip_next = True
@@ -168,7 +169,11 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
         
         # Find real roots for roll subsidence and spiral
         real_roots = sorted([r for r in rd if abs(r.imag) <= 1e-10], key=lambda x: x.real)
-        r3, r4 = real_roots[0], real_roots[1]  # Roll subsidence, Spiral
+        if len(real_roots) >= 2:
+            r3, r4 = real_roots[0], real_roots[1]  # Roll subsidence, Spiral
+        else:
+            r3, r4 = numpy.nan, numpy.nan
+            #raise ValueError(f"Not enough real roots to identify roll subsidence and spiral modes.\n complex roots: {complex_roots}\n real roots: {real_roots}")
     else:
         # If no complex roots (unusual), just use the sorted roots
         r1, r2, r3, r4 = sorted_by_real
@@ -183,7 +188,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
 
     # Compute stability parameters
     # Dutch roll frequency and damping
-    dnf = np.sqrt(r1 * r2).real  # Using real part to handle any numerical errors
+    dnf = numpy.sqrt(r1 * r2).real  # Using real part to handle any numerical errors
     ddr = -0.5 * (r1 + r2).real / dnf
     
     # Time constants
@@ -213,7 +218,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Lateral Velocity Response to Aileron Deflection:")
         print(f"N(s)={num1[0]:12.4e}s^2{num1[1]:+12.4e}s{num1[2]:+12.4e}")
-        rn1 = np.roots(num1)
+        rn1 = numpy.roots(num1)
         print("    roots= " + "    ".join([cfmt(r) for r in rn1]))
 
     a2 = le
@@ -225,7 +230,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Roll Rate Response to Aileron Deflection:")
         print(f"N(s)={num2[0]:12.4e}s^3{num2[1]:+12.4e}s^2{num2[2]:+12.4e}s{num2[3]:+12.4e}")
-        rn2 = np.roots(num2[:3])  # Ignore last zero coefficient for roots
+        rn2 = numpy.roots(num2[:3])  # Ignore last zero coefficient for roots
         print("    roots= " + "    ".join([cfmt(r) for r in rn2]))
 
     a3 = ne
@@ -237,7 +242,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Yaw Rate Response to Aileron Deflection:")
         print(f"N(s)={num3[0]:12.4e}s^3{num3[1]:+12.4e}s^2{num3[2]:+12.4e}s{num3[3]:+12.4e}")
-        rn3 = np.roots(num3)
+        rn3 = numpy.roots(num3)
         print("    roots= " + "    ".join([cfmt(r) for r in rn3]))
 
     a4 = le
@@ -248,7 +253,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Roll Angle Response to Aileron Deflection:")
         print(f"N(s)={num4[0]:12.4e}s^2{num4[1]:+12.4e}s{num4[2]:+12.4e}")
-        rn4 = np.roots(num4)
+        rn4 = numpy.roots(num4)
         print("    roots= " + "    ".join([cfmt(r) for r in rn4]))
         print()
 
@@ -262,7 +267,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Lateral Velocity Response to Rudder Deflection:")
         print(f"N(s)={num5[0]:12.4e}s^3{num5[1]:+12.4e}s^2{num5[2]:+12.4e}s{num5[3]:+12.4e}")
-        rn5 = np.roots(num5)
+        rn5 = numpy.roots(num5)
         print("    roots= " + "    ".join([cfmt(r) for r in rn5]))
 
     a6 = lz
@@ -274,7 +279,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Roll Rate Response to Rudder Deflection:")
         print(f"N(s)={num6[0]:12.4e}s^3{num6[1]:+12.4e}s^2{num6[2]:+12.4e}s{num6[3]:+12.4e}")
-        rn6 = np.roots(num6[:3])  # Ignore last zero coefficient for roots
+        rn6 = numpy.roots(num6[:3])  # Ignore last zero coefficient for roots
         print("    roots= " + "    ".join([cfmt(r) for r in rn6]))
 
     a7 = nz
@@ -286,7 +291,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Yaw Rate Response to Rudder Deflection:")
         print(f"N(s)={num7[0]:12.4e}s^3{num7[1]:+12.4e}s^2{num7[2]:+12.4e}s{num7[3]:+12.4e}")
-        rn7 = np.roots(num7)
+        rn7 = numpy.roots(num7)
         print("    roots= " + "    ".join([cfmt(r) for r in rn7]))
 
     a8 = lz
@@ -297,12 +302,12 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     if prints:
         print("Roll Angle Response to Rudder Deflection:")
         print(f"N(s)={num8[0]:12.4e}s^2{num8[1]:+12.4e}s{num8[2]:+12.4e}")
-        rn8 = np.roots(num8)
+        rn8 = numpy.roots(num8)
         print("    roots= " + "    ".join([cfmt(r) for r in rn8]))
         print()
 
     # Time array
-    t = np.arange(tpar[0], tpar[2] + tpar[1]*0.9999999, tpar[1])
+    t = numpy.arange(tpar[0], tpar[2] + tpar[1]*0.9999999, tpar[1])
 
     # Step responses
     def step_response(num, den, t):
@@ -329,10 +334,10 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
     beta = v / V0
 
     # Write data to file (optional)
-    if prints:
+    if False:
         # Save to numpy .npy file instead of a flat file
-        data = np.column_stack((t, v, p, r, o, beta))
-        np.save('lateral.npy', data)
+        data = numpy.column_stack((t, v, p, r, o, beta))
+        numpy.save('lateral.npy', data)
         
         # Also write a text file similar to the MATLAB version
         with open('lateral.dat', 'w') as fd:
@@ -341,20 +346,33 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
 
     # Plotting
     if plots:
-        plt.figure(); plt.plot(t,v); plt.ylabel('Lateral Velocity'); plt.xlabel('Seconds'); plt.grid(True)
-        plt.figure(); plt.plot(t,p); plt.ylabel('Roll Rate'); plt.xlabel('Seconds'); plt.grid(True)
-        plt.figure(); plt.plot(t,r); plt.ylabel('Yaw Rate'); plt.xlabel('Seconds'); plt.grid(True)
-        plt.figure(); plt.plot(t,o); plt.ylabel('Roll Angle'); plt.xlabel('Seconds'); plt.grid(True)
-        plt.figure(); plt.plot(t,beta); plt.ylabel('Sideslip Angle'); plt.xlabel('Seconds'); plt.grid(True)
+        # Individual plots
+        fig1 = plt.figure(); plt.plot(t,v); plt.ylabel('Lateral Velocity'); plt.xlabel('Seconds'); plt.grid(True)
+        plt.savefig('assets/lateral/lateral_velocity.png')
         
-        plt.figure();
+        fig2 = plt.figure(); plt.plot(t,p); plt.ylabel('Roll Rate'); plt.xlabel('Seconds'); plt.grid(True)
+        plt.savefig('assets/lateral/roll_rate.png')
+        
+        fig3 = plt.figure(); plt.plot(t,r); plt.ylabel('Yaw Rate'); plt.xlabel('Seconds'); plt.grid(True)
+        plt.savefig('assets/lateral/yaw_rate.png')
+        
+        fig4 = plt.figure(); plt.plot(t,o); plt.ylabel('Roll Angle'); plt.xlabel('Seconds'); plt.grid(True)
+        plt.savefig('assets/lateral/roll_angle.png')
+        
+        fig5 = plt.figure(); plt.plot(t,beta); plt.ylabel('Sideslip Angle'); plt.xlabel('Seconds'); plt.grid(True)
+        plt.savefig('assets/lateral/sideslip_angle.png')
+        
+        # Combined plots
+        fig6 = plt.figure()
         plt.subplot(3,1,1); plt.plot(t,v); plt.ylabel('Lateral Velocity'); plt.grid(True)
         plt.subplot(3,1,2); plt.plot(t,p); plt.ylabel('Roll Rate'); plt.grid(True)
         plt.subplot(3,1,3); plt.plot(t,r); plt.ylabel('Yaw Rate'); plt.grid(True)
+        plt.savefig('assets/lateral/lateral_combined1.png')
         
-        plt.figure();
+        fig7 = plt.figure()
         plt.subplot(3,1,1); plt.plot(t,o); plt.ylabel('Roll Angle'); plt.grid(True)
         plt.subplot(3,1,2); plt.plot(t,beta); plt.ylabel('Sideslip Angle'); plt.grid(True)
+        plt.savefig('assets/lateral/lateral_combined2.png')
 
     # Steady-state responses
     vss = (xi*d1 + zeta*d5)/e0
@@ -370,9 +388,7 @@ def aircraft_lateral_dynamics(V0, a, b, tpar, xi, zeta, kv, kp, kr, ko,
         print(f"{rss:12.4e} :Yaw Rate")
         print(f"{oss:12.4e} :Roll Angle")
         print(f"{betass:12.4e} :Sideslip Angle")
-        
-    if plots:
-        plt.show()
+
 
     if for_optim:
         return dnf, ddr, Tr, Ts
@@ -383,7 +399,7 @@ if __name__ == "__main__":
     V0 = 585.0  # ft/s
     
     # Example stability derivatives matrix (4x4)
-    a = np.array([
+    a = numpy.array([
         [-0.0682, 0.0, 0.0, 0.0],
         [0.0, -1.936, 0.546, 0.0],
         [0.0, -0.272, -0.397, 0.0],
@@ -391,7 +407,7 @@ if __name__ == "__main__":
     ])
     
     # Example control derivatives matrix (2x4)
-    b = np.array([
+    b = numpy.array([
         [0.0, 0.0234],
         [0.138, 0.0043],
         [0.0037, -0.0536],

@@ -132,7 +132,7 @@ class Wing(Component):
         """Add flaps and ailerons to the wing"""
         # Flap parameters
         self.flap_start = 0.13  # Start at 10% of half span
-        self.flap_end = self.flap_start + .7   # End at 60% of half span
+        self.flap_end = self.flap_start + .6   # End at 60% of half span
         self.flap_chord_ratio = 0.3  # Flap is 30% of local chord
         
         # Aileron parameters
