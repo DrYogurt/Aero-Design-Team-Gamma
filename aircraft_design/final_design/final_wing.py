@@ -73,60 +73,57 @@ class Wing(Component):
         self._populate_mass_analysis()
 
     def _add_fuel_tanks(self):
-        """Add four fuel tanks to the wing"""
+        """Add a single fuel tank to the wing"""
         
         # Wing position in feet
         wing_x = self.wing_tip_position
         wing_z = 0.14 * self.root_chord
         
-        # Tank dimensions in feet
-        inner_tank_width = 55
-        outer_tank_width = 15
-        inner_tank_length = self.root_chord*.4
-        outer_tank_length = self.root_chord*.1
+        # Create a single large fuel tank
+        tank = FuelTank(
+            length=0,  # 80% of root chord
+            front_height=0,  # 12% of root chord
+            back_height=0,  # 12% of root chord
+            width=0,  # 80% of wing span
+            fill_level=1
+        )
+        tank.color = "red"
+        tank.geometry = FuelTankGeometry()
+        tank.name = "main_fuel_tank"
+        
+        # Position the tank at the wing's center
+        tank.geometry.position = Position(
+            x=0,  # Centered along chord
+            y=0,  # Centered along span
+            z=0   # At wing's vertical center
+        )
+        
+        # Set mass properties manually
+        tank_mass = 6e5 -5.4e4 # lbs
+        tank_cg_x = 231.05 / 12  # Convert inches to feet
+        tank_cg_y = 0.0
+        tank_cg_z = 36.04 / 12  # Convert inches to feet
+        
 
+        tank_ixx = 375871650626.54 / 144 #zz
+        tank_iyy = 79516660699.40 / 144  #xx
+        tank_izz = 450089349039.73 / 144 #yy
+        tank_ixy = -10319345.66 / 144   #zx
+        tank_ixz = -310505932.55 / 144   #zy
+        tank_iyz = -18567.36 / 144       #yx
 
-
-        # Determine fill levels based on configuration
-        tank_count = 0
-        for side in ['left', 'right']:
-            for position in ['front', 'back']:
-                # For half configuration, only fill the first two tanks
-                
-                tank = FuelTank(
-                    length=(inner_tank_length if position == 'front' else outer_tank_length),
-                    front_height=(inner_tank_length*.13 if position == 'front' else outer_tank_length*.13), #13% of length
-                    back_height=(inner_tank_length*.10 if position == 'front' else outer_tank_length*.13), #10% of length
-                    width=(inner_tank_width if position == 'front' else outer_tank_width),
-                    fill_level=1
-                )
-                tank.color = "red"
-                tank_count += 1
-                tank.geometry = FuelTankGeometry()
-                # Set tank name for identification
-                tank.name = f"fuel_tank_{side}_{position}"
-                
-                # Position along wing span (y-axis)
-                y_offset = (inner_tank_width / 2 if position == 'front' else 3*inner_tank_width / 2)*(1 if side == 'left' else -1) + (inner_tank_width / 2 if side == 'left' else -inner_tank_width / 2)
-                
-                # Position along wing chord (x-axis)
-                # Position tanks at 25% and 60% of local chord
-                
-                # Adjust x position for sweep
-                sweep_rad = np.radians(40.0)  # wing sweep in radians
-                sweep_offset = abs(y_offset) * np.tan(sweep_rad)
-                x_with_sweep = sweep_offset / 2
-                
-                # Z-offset (height) - position tanks inside the wing
-                z_offset = abs(y_offset) * np.tan(np.radians(self.geometry.parameters['dihedral']))
-                
-                # Set position directly in feet
-                tank.geometry.position = Position(
-                    x=x_with_sweep,  # Add wing x position plus chord position
-                    y=y_offset,               # Y position along span
-                    z=z_offset                # Z position (height)
-                )
-                self.add_child(tank)
+        tank.features[0].parameters.update({
+            "mass": tank_mass,
+            "center_of_gravity": [tank_cg_x, tank_cg_y, tank_cg_z],
+            "ixx": tank_ixx,
+            "iyy": tank_iyy,
+            "izz": tank_izz,
+            "ixy": tank_ixy,
+            "ixz": tank_ixz,
+            "iyz": tank_iyz
+        })
+        
+        self.add_child(tank)
 
     def _add_control_surfaces(self):
         """Add flaps and ailerons to the wing"""
@@ -185,32 +182,32 @@ class Wing(Component):
 
     def _populate_mass_analysis(self):
         # Values from solidworks: 3/30/2025
-        mass_lb = 280000.86
-        cg_x_in = 822.18
-        cg_y_in = 0.0  # Setting to 0.0 to ensure symmetry about the y-axis
-        cg_z_in = 0.01  # This was 47.06 but appears to have been swapped with y
+        # mass_lb = 280000.86
+        # cg_x_in = 822.18
+        # cg_y_in = 0.0  # Setting to 0.0 to ensure symmetry about the y-axis
+        # cg_z_in = 0.01  # This was 47.06 but appears to have been swapped with y
 
         # Fix the order of moments of inertia to match coordinate system
-        ixx_lb_in2 = 22241208042.76
-        iyy_lb_in2 = 25786865454.86  # This was incorrectly assigned to izz
-        izz_lb_in2 = 3654685797.90   # This was incorrectly assigned to iyy
-        ixy_lb_in2 = 0.0  # Setting to 0.0 for symmetric mass distribution
-        ixz_lb_in2 = 106736.46
-        iyz_lb_in2 = 0.0  # Setting to 0.0 for symmetric mass distribution
+        # ixx_lb_in2 = 22241208042.76
+        # iyy_lb_in2 = 25786865454.86  # This was incorrectly assigned to izz
+        # izz_lb_in2 = 3654685797.90   # This was incorrectly assigned to iyy
+        # ixy_lb_in2 = 0.0  # Setting to 0.0 for symmetric mass distribution
+        # ixz_lb_in2 = 106736.46
+        # iyz_lb_in2 = 0.0  # Setting to 0.0 for symmetric mass distribution
 
         # Create the MassFeature
-        wing_box_mass_feature = MassFeature(
-            mass=mass_lb * 1.1,
-            center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
-            ixx=ixx_lb_in2 / 144,
-            iyy=iyy_lb_in2 / 144,
-            izz=izz_lb_in2 / 144,
-            ixy=ixy_lb_in2 / 144,
-            ixz=ixz_lb_in2 / 144,
-            iyz=iyz_lb_in2 / 144
-        )
+        # wing_box_mass_feature = MassFeature(
+        #     mass=mass_lb * 1.1,
+        #     center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
+        #     ixx=ixx_lb_in2 / 144,
+        #     iyy=iyy_lb_in2 / 144,
+        #     izz=izz_lb_in2 / 144,
+        #     ixy=ixy_lb_in2 / 144,
+        #     ixz=ixz_lb_in2 / 144,
+        #     iyz=iyz_lb_in2 / 144
+        # )
 
-        self.add_feature(wing_box_mass_feature)
+        # self.add_feature(wing_box_mass_feature)
         self.add_analysis(MassAnalysis())
 
     @property

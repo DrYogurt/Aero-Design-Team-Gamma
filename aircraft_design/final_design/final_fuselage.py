@@ -67,35 +67,35 @@ class Fuselage(Component):
     def _populate_mass_analysis(self):
         """Add mass analysis with dummy values (similar to final_wing.py)"""
         # Dummy values for fuselage mass analysis
-        mass_lb = 268094.78
-        cg_x_in = 1349.02
-        cg_y_in = -.27
-        cg_z_in = 30.05
+        # mass_lb = 268094.78
+        # cg_x_in = 1349.02
+        # cg_y_in = -.27
+        # cg_z_in = 30.05
 
-        ixx_lb_in2 = 4768008236.83 
-        ixy_lb_in2 = 57687872.85
-        ixz_lb_in2 = -8615782645.12
-        ixy_lb_in2 = 57687872.85
-        iyy_lb_in2 = 652355028347.41
-        iyz_lb_in2 = 9982748.14
-        ixz_lb_in2 = -8615782645.12
-        iyz_lb_in2 = 9982748.14
-        izz_lb_in2 = 652031439595.14
+        # ixx_lb_in2 = 4768008236.83 
+        # ixy_lb_in2 = 57687872.85
+        # ixz_lb_in2 = -8615782645.12
+        # ixy_lb_in2 = 57687872.85
+        # iyy_lb_in2 = 652355028347.41
+        # iyz_lb_in2 = 9982748.14
+        # ixz_lb_in2 = -8615782645.12
+        # iyz_lb_in2 = 9982748.14
+        # izz_lb_in2 = 652031439595.14
 
         
         # Create the MassFeature (converting inches to feet)
-        fuselage_mass_feature = MassFeature(
-            mass=mass_lb,
-            center_of_gravity=[cg_x_in / 12 - 20, cg_y_in / 12, cg_z_in / 12],
-            ixx=ixx_lb_in2 / 144,
-            iyy=iyy_lb_in2 / 144,
-            izz=izz_lb_in2 / 144,
-            ixy=ixy_lb_in2 / 144,
-            ixz=ixz_lb_in2 / 144,
-            iyz=iyz_lb_in2 / 144
-        )
+        # fuselage_mass_feature = MassFeature(
+        #     mass=mass_lb,
+        #     center_of_gravity=[cg_x_in / 12 - 20, cg_y_in / 12, cg_z_in / 12],
+        #     ixx=ixx_lb_in2 / 144,
+        #     iyy=iyy_lb_in2 / 144,
+        #     izz=izz_lb_in2 / 144,
+        #     ixy=ixy_lb_in2 / 144,
+        #     ixz=ixz_lb_in2 / 144,
+        #     iyz=iyz_lb_in2 / 144
+        # )
 
-        self.add_feature(fuselage_mass_feature)
+        # self.add_feature(fuselage_mass_feature)
         self.add_analysis(MassAnalysis())
     
     def plot(self, *args, **kwargs) -> Object3D:

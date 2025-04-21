@@ -31,7 +31,7 @@ class Cabin(Component):
         self.cabin_interior = InteriorComponent("cabin_interior")
         self.cabin_interior.add_child(self.top_floor)
         self.cabin_interior.add_child(self.bottom_floor)
-        
+        self.add_child(self.cabin_interior)
 
         self._compute_dimensions()
         
@@ -361,7 +361,7 @@ if __name__ == "__main__":
     """
     # Print emergency exit positions
     print("\n=== Emergency Exit Positions ===")
-    print("\Top Floor Exits:")
+    print("Top Floor Exits:")
     for section in cabin.top_floor_sections:
         for exit_row in section.exit_rows:
             global_pos = exit_row.get_global_position()

@@ -175,7 +175,7 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
     
     return results
 
-def analyze_aircraft_static_stability(aircraft: Aircraft, output_filename = None):
+def analyze_aircraft_static_stability(aircraft: Aircraft, landing_configuration = False, output_filename = None):
     """
     Perform comprehensive stability analysis on an aircraft and save results to a JSON file.
     
@@ -211,6 +211,11 @@ def analyze_aircraft_static_stability(aircraft: Aircraft, output_filename = None
     
     # Get aircraft parameters
     aircraft_params = aircraft_to_parameters(aircraft)
+
+    if landing_configuration:
+        aircraft_params['wing_zero_lift_angle'] = np.radians(-13)
+        aircraft_params['wing_area'] += aircraft.wing.flap_area*1.2
+        aircraft_params['optimize_tail_incidence'] = False
     
     # Calculate tail volume coefficients
     h_tail_volume = aircraft_params['htail_area'] * aircraft_params['htail_arm'] / (

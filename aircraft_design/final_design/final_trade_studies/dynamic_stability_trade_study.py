@@ -6,6 +6,7 @@ from aircraft_design.analysis.stability_conversion import convert_stability_to_a
 from aircraft_design.analysis.longitudinal import aircraft_longitudinal_dynamics
 from aircraft_design.analysis.lateral import aircraft_lateral_dynamics
 
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -178,7 +179,7 @@ def analyze_aircraft_dynamic_stability(
     )
     return short_nf, short_df, p_nf, p_df, dnf, ddr, Tr, Ts
 
-def optimize_longitudinal_gains(aircraft: Aircraft, target_values=None):
+def optimize_longitudinal_gains(aircraft: Aircraft, target_values=None, base_gains=None):
     """
     Optimize the longitudinal feedback gains to minimize the MSE between actual and target dynamic stability characteristics.
     
@@ -225,12 +226,17 @@ def optimize_longitudinal_gains(aircraft: Aircraft, target_values=None):
             # Phugoid damping ratio - normalize by target value
             (min(0, p_df - target_values['p_df']))**2 / (target_values['p_df']**2 + 1e-10)
         )
+
+        if any(np.isnan([short_nf, short_df, p_nf, p_df])):
+            cost = 1e10
         print(f"Longitudinal Cost: {cost}, short_nf: {short_nf:.2f}, short_df: {short_df:.2f}, p_nf: {p_nf:.2f}, p_df: {p_df:.2f}")
         print(f"Longitudinal Gains: {gains}")
         return cost
     
     # Initial guess (random values between -1 and 1)
     x0 = np.random.uniform(-1, 1, 8)
+    if base_gains is not None:
+        x0 = base_gains
     
     # Bounds for all gains (-1 to 1)
     bounds = [(-0.001, 0.001) for _ in range(8)]
@@ -253,7 +259,7 @@ def optimize_longitudinal_gains(aircraft: Aircraft, target_values=None):
     
     return optimized_gains
 
-def optimize_lateral_gains(aircraft: Aircraft, target_values=None):
+def optimize_lateral_gains(aircraft: Aircraft, target_values=None, base_gains=None):
     """
     Optimize the lateral feedback gains to minimize the MSE between actual and target dynamic stability characteristics.
     
@@ -271,7 +277,7 @@ def optimize_lateral_gains(aircraft: Aircraft, target_values=None):
         target_values = {
             'dnf': 0.5, #min 0.5     # Target natural frequency for Dutch roll mode
             'ddr': 0.08, #min 0.08     # Target damping ratio for Dutch roll mode
-            'Tr': 1.4, # max 1.4   -  Target time constant for roll subsistence mode
+            'Tr': 2.5, # max 1.4   -  Target time constant for roll subsistence mode
             'Ts': 28.9 # max 28.9  - Target time constant for spiral mode
         }
     
@@ -299,25 +305,29 @@ def optimize_lateral_gains(aircraft: Aircraft, target_values=None):
             # Roll mode time constant - normalize by target value
             (max(0, Tr - target_values['Tr']))**2 / (target_values['Tr']**2 + 1e-10) +
             # Spiral mode time constant - normalize by target value
-            (min(0, Ts - target_values['Ts']))**2 / (target_values['Ts']**2 + 1e-10) +
+            (min(0, Ts - abs(target_values['Ts'])))**2 / (abs(target_values['Ts'])**2 + 1e-10) +
             # Ensure time constants are positive - use fixed normalization factor
             (min(0, Tr))**2
         )
+        if any(np.isnan([dnf, ddr, Tr, Ts])):
+            cost = 1e10
         print(f"Lateral Cost: {cost}, dnf: {dnf:.2f}, ddr: {ddr:.2f}, Tr: {Tr:.2f}, Ts: {Ts:.2f}")
         print(f"Lateral Gains: {gains}")
         return cost
     
     # Initial guess (all zeros)
     x0 = np.zeros(8)
+    if base_gains is not None:
+        x0 = base_gains
     
     # Bounds for all gains (-1 to 1)
-    bounds = [(-2, 2) for _ in range(8)]
+    #bounds = [(-3, 3) for _ in range(8)]
     
     # Optimize
     result = minimize(
         cost_function,
         x0,
-        bounds=bounds,
+        #bounds=bounds,
         #method='Nelder-Mead',
     )
     
@@ -343,11 +353,12 @@ def plot_gain_sensitivity(aircraft: Aircraft, gain_name: str, gain_range=(-2, 2)
     """
     # Create base gains dictionary with all gains set to zero
     if base_gains is None:
-        base_gains = {
+        gains = {
             'ku': [0, 0], 'kw': [0, 0], 'kq': [0, 0], 'ko_long': [0, 0],
             'kv': [0, 0], 'kp': [0, 0], 'kr': [0, 0], 'ko_lat': [0, 0]
         }
-    
+    else:
+        gains = copy.deepcopy(base_gains)
     # Generate gain values to test
     gain_values = np.linspace(gain_range[0], gain_range[1], num_points)
     

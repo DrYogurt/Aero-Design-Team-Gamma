@@ -4,7 +4,7 @@ from aircraft_design.analysis.static_stability import analyze_aircraft_stability
 from aircraft_design.components.propulsion.fuel_tanks import FuelTank
 import matplotlib.pyplot as plt
 import numpy as np
-
+import copy
 def analyze_static_margins():
     # Create arrays to store results
     wing_tip_positions = np.linspace(25, 125, 50)
@@ -88,7 +88,7 @@ def analyze_static_margins():
     plt.savefig('assets/static_margin_analysis.png')
     plt.close()
 
-def static_margin_at_full_and_empty():
+def static_margin_at_full_and_empty(aircraft):
     """
     Calculate and return the static margin for both full and empty fuel configurations
     using the optimal wing tip position.
@@ -96,32 +96,34 @@ def static_margin_at_full_and_empty():
     Returns:
         tuple: (full_static_margin, empty_static_margin) - Static margins as decimal values
     """
-    # Create aircraft with optimal wing tip position (based on previous analysis)
-    #optimal_wing_position = 70  # feet, based on previous analysis
-    aircraft = Aircraft()
-    
+    # make two copies of the aircraft
+    full_fuel_aircraft = copy.deepcopy(aircraft)
+    empty_fuel_aircraft = copy.deepcopy(aircraft)
     # Calculate full fuel static margin
-    aircraft_params = aircraft_to_parameters(aircraft)
-    stability_results = analyze_aircraft_stability("full", aircraft_params)
+    full_fuel_aircraft_params = aircraft_to_parameters(full_fuel_aircraft)
+    stability_results = analyze_aircraft_stability("full", full_fuel_aircraft_params)
     full_static_margin = stability_results['longitudinal_stability']['static_margin']
     
     # Get full fuel CG position
-    full_cg_position = aircraft.get_mass_properties()['cg_x']
+    full_cg_position = full_fuel_aircraft_params['cg_x']
     
     # Empty all fuel tanks
-    for component in [aircraft.wing, aircraft.horizontal_tail, aircraft.vertical_tail]:
+    for component in [empty_fuel_aircraft.wing, empty_fuel_aircraft.horizontal_tail, empty_fuel_aircraft.vertical_tail]:
         for child in component.children:
             if isinstance(child, FuelTank):
                 child.set_fill_level(0.0)
     
     # Calculate empty fuel static margin
-    aircraft_params = aircraft_to_parameters(aircraft)
-    stability_results = analyze_aircraft_stability("empty", aircraft_params)
+    empty_fuel_aircraft_params = aircraft_to_parameters(empty_fuel_aircraft)
+
+    # debug  the mass of the wing
+    print(f"Wing mass: {full_fuel_aircraft.wing.analysis_results['mass_analysis']['total_mass']} lbs")
+
+    stability_results = analyze_aircraft_stability("empty", empty_fuel_aircraft_params)
     empty_static_margin = stability_results['longitudinal_stability']['static_margin']
     
     # Get empty fuel CG position
-    empty_cg_position = aircraft.get_mass_properties()['cg_x']
-    
+    empty_cg_position = empty_fuel_aircraft_params['cg_x']
     return (full_static_margin, empty_static_margin, full_cg_position, empty_cg_position)
 
 if __name__ == "__main__":

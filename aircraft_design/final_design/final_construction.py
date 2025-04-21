@@ -38,16 +38,12 @@ class Aircraft(Component):
         )
         self.add_child(self.wing)
         
-        wing_fuel_tank_fill_level = 0.8
-        for child in self.wing.children:
-            if isinstance(child, FuelTank):
-                child.set_fill_level(wing_fuel_tank_fill_level)
-
+        
         # Create cabin
         self.cabin = Cabin()
         
         self.cabin.cabin_interior.geometry.position = Position(
-            x=self.fuselage.nose_length,  # Position cabin after nose section
+            x=self.fuselage.nose_length+35,  # Position cabin after nose section
             y=-self.cabin.cabin_width / 2,  # Position cabin at the centerline of the aircraft
             z=9  # Position cabin at the center of the tall section height
         )
@@ -85,7 +81,7 @@ class Aircraft(Component):
         
         # Create four engines
         # Engine parameters
-        engine_mass = 20000  # lbs
+        engine_mass = 0  # lbs
         engine_radius = 14.0/2  # ft
         engine_length = 19.0  # ft
         engine_thrust = 26710  # lbs
@@ -153,7 +149,7 @@ class Aircraft(Component):
             name="nose_landing_gear",
             position=Position(x=30, y=0, z=0),
             num_wheels=4,
-            wheel_mass=2222
+            wheel_mass=0
         )
         self.add_child(nose_gear)
 
@@ -163,7 +159,7 @@ class Aircraft(Component):
             name="main_landing_gear_left_1",
             position=Position(x=133, y=15, z=0),  # 15ft to the left
             num_wheels=6,
-            wheel_mass=2222
+            wheel_mass=0
         )
         self.add_child(main_gear_left_1)
 
@@ -171,7 +167,7 @@ class Aircraft(Component):
             name="main_landing_gear_left_2",
             position=Position(x=133, y=25, z=0),  # 25ft to the left
             num_wheels=6,
-            wheel_mass=2222
+            wheel_mass=0
         )
         self.add_child(main_gear_left_2)
 
@@ -179,7 +175,8 @@ class Aircraft(Component):
         main_gear_right_1 = LandingGear(
             name="main_landing_gear_right_1",
             position=Position(x=133, y=-15, z=0),  # 15ft to the right
-            num_wheels=4
+            num_wheels=4,
+            wheel_mass=0
         )
         self.add_child(main_gear_right_1)
 
@@ -187,7 +184,7 @@ class Aircraft(Component):
             name="main_landing_gear_right_2",
             position=Position(x=133, y=-25, z=0),  # 25ft to the right
             num_wheels=4,
-            wheel_mass=2222
+            wheel_mass=0
         )
         self.add_child(main_gear_right_2)
 
@@ -197,7 +194,7 @@ class Aircraft(Component):
             name="rear_landing_gear_left",
             position=Position(x=155, y=20, z=0),  # 20ft to the left
             num_wheels=6,
-            wheel_mass=2222
+            wheel_mass=0
         )
         self.add_child(rear_gear_left)
 
@@ -206,22 +203,10 @@ class Aircraft(Component):
             name="rear_landing_gear_right",
             position=Position(x=155, y=-20, z=0),  # 20ft to the right
             num_wheels=6,
-            wheel_mass=2222
+            wheel_mass=0
         )
         self.add_child(rear_gear_right)
 
-        # Add point mass 30 feet back from nose in center of fuselage        # Add point mass 30 feet back from nose in center of fuselage
-        point_mass = MassFeature(
-            mass=2e5,  # 1000 lbs
-            center_of_gravity=[30, 0, 0],  # 30 feet back from nose, centered in y and z
-            ixx=0,  # Point mass has negligible moments of inertia
-            iyy=0,
-            izz=0,
-            ixy=0,
-            ixz=0,
-            iyz=0
-        )
-        #self.add_feature(point_mass)
 
         # Add mass analysis
         self.add_analysis(MassAnalysis())

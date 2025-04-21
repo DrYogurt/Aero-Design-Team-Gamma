@@ -23,7 +23,7 @@ def aircraft_to_parameters(aircraft: Aircraft):
 
     # Get tail incidence angle from orientation
     tail_incidence_deg = htail.orientation.pitch
-    tail_incidence_rad = np.radians(tail_incidence_deg)
+    tail_incidence_rad = np.radians(1)
     aircraft_params = {
         'wing_area': wing.area,
         'wingspan': wing.parameters['span'],
@@ -43,13 +43,16 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'vertical_tail_height': vtail.parameters['height'],
         'vertical_tail_chord': vtail.parameters['root_chord'],
         # Position parameters
+        'cg_x': cg_absolute_position,
         'cg_position': (cg_absolute_position - mean_wingtip_position) / mac,  # CG position as fraction of MAC
         'ac_position': (wing.parameters['root_chord']/4 + mean_wingtip_position-wing_zero) / mac,        # Aerodynamic center position as fraction of MAC
         'htail_ac_position': (htail.position.x  - mean_wingtip_position  + wing.parameters['root_chord']/4) / mac,  # Horizontal tail AC position as fraction of MAC
         'htail_aspect_ratio': htail.aspect_ratio,
         # Basic aerodynamic parameters
         'section_lift_slope': 2*np.pi,  # 2π per radian (theoretical)
-        'zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
+        'wing_zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
+        'horizontal_tail_zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
+        'vertical_tail_zero_lift_angle': np.radians(-5),  # Zero lift angle of attack in radians
         
         # Efficiency factors
         'tail_efficiency': .9,    # Horizontal tail efficiency factor #TODO: figure out a real value
@@ -72,7 +75,9 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'aircraft_weight': aircraft.get_mass_properties()['total_mass'],
         'airspeed': 0.9 * 1116.45,    # 90% of design speed
         'density': 0.00237717,       # Air density at altitude
-        'alpha': np.radians(2),     # Initial angle of attack
+        'alpha': np.radians(0),     # Initial angle of attack
+        'optimize_tail_incidence': True,
+
         #'sideslip': 0               # No sideslip
     }
     #print(f"root chord: {wing.parameters['root_chord']}")

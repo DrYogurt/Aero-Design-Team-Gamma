@@ -193,10 +193,10 @@ def tail_incidence_for_trim(CM_ac, CL, alpha, CM_alpha, CL_alpha, CM_i, CL_i):
     Returns:
     it: Tail incidence
     """
-    numerator = -CM_ac * CL_alpha + CM_alpha * CL
+    numerator = CM_ac * CL_alpha + CM_alpha * CL
     denominator = CL_alpha * CM_i - CM_alpha * CL_i
     
-    it = numerator / denominator
+    it = -numerator / denominator
     
     return it
 
@@ -626,9 +626,12 @@ def longitudinal_stability_analysis(aircraft_params):
     CM_ac = aircraft_params['cm_ac']
     AR = aircraft_params['aspect_ratio']
     alpha = aircraft_params.get('alpha', np.radians(2))
-    alpha_L0 = aircraft_params['zero_lift_angle']
+    alpha_L0_wing = aircraft_params['wing_zero_lift_angle']
+    alpha_L0_ht = aircraft_params['horizontal_tail_zero_lift_angle']
+    alpha_L0_vt = aircraft_params['vertical_tail_zero_lift_angle']
     d_epsilon_d_alpha = aircraft_params.get('d_epsilon_d_alpha', 0.4)  # Typical value
     CD_0 = aircraft_params['CD_0']
+    optimize_tail_incidence = aircraft_params.get('optimize_tail_incidence', False)
     
     # Calculate horizontal tail volume ratio
     VH = (St * lt) / (S * c)
@@ -648,22 +651,33 @@ def longitudinal_stability_analysis(aircraft_params):
     CL_i = -eta_t * at * (St/S)
 
     # optimize tail incidence
-    from scipy.optimize import minimize
-    def objective(it):
-        return abs(tail_incidence_for_trim(CM_ac, CL_alpha*alpha+CL_i*it, alpha, CM_alpha, CL_alpha, CM_i, CL_i) - it)
-    result = minimize(objective, [0], method='Nelder-Mead')
-    it = result.x[0]
-    
+
+    if optimize_tail_incidence:
+        #print("Optimizing tail incidence")
+        from scipy.optimize import minimize
+        def objective(it):
+            return abs(tail_incidence_for_trim(CM_ac, CL_alpha*alpha+CL_i*it, alpha, CM_alpha, CL_alpha, CM_i, CL_i) - it)
+        result = minimize(objective, [0], method='Nelder-Mead')
+        it = result.x[0]
+    if it < 0:
+      print(f"Tail incidence is {it}")
+      print(f"CM_ac is {CM_ac}")
+      print(f"CL_alpha is {CL_alpha}")
+      print(f"CL_i is {CL_i}")
+      print(f"CM_alpha is {CM_alpha}")
+      print(f"CM_i is {CM_i}")  
+      raise ValueError(f"Tail incidence is {it} < 0! This is not possible!")
+    #print(f"Tail Incidence: {it}")
     # Calculate trim angle of attack
     CL_0 = -eta_t * at * (St/S) * it
     CM_0 = (h_l - h) * eta_t * (St/S) * at * it + CM_ac
     
     # Calculate Overall Moment Coefficient
-    CM = CM_alpha * (alpha - alpha_L0) + CM_0
+    CM = CM_alpha * (alpha - alpha_L0_wing) + CM_0
 
-    CL_total = CL_alpha * (alpha - alpha_L0) + CL_0
+    CL_total = CL_alpha * (alpha - alpha_L0_wing) + CL_0
     CD_alpha = 2 / (np.pi * AR) * (CL_total) * CL_alpha
-    CD_total = CD_alpha * (alpha - alpha_L0) + CD_0
+    CD_total = CD_alpha * (alpha - alpha_L0_wing) + CD_0
     # Prepare results
     results = {
         'CL_total': CL_total,

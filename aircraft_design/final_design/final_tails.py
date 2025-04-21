@@ -54,19 +54,18 @@ class HorizontalTail(Component):
         self.geometry.orientation = Orientation(roll=0.0, pitch=7.2, yaw=0.0)  # 2 degrees initial pitch
         
         # Mass properties (simplified model - approximately 10% of wing mass)
-        self.mass = 25e3 # ~40% of wing mass
-        self.features.append(MassFeature(self.mass, [position.x, position.y, position.z]))
+        # self.mass = 0 # ~40% of wing mass
+        # self.features.append(MassFeature(self.mass, [position.x, position.y, position.z]))
         
         # Add analysis modules
         self.add_analysis(MassAnalysis())
 
-        # Add fuel tank
-        tank_width = self.span * .8  # feet
+        # Add fuel tank capable of storing 540 ft 3 of fuel
         tank = FuelTank(
-            length=self.root_chord * 0.5,  # 80% of root chord
-            front_height=self.root_chord * 0.1,  # 10% of root chord
-            back_height=self.root_chord * 0.1,  # 10% of root chord
-            width=tank_width,
+            length=18,
+            front_height=3,  # 10% of root chord
+            back_height=3,  # 10% of root chord
+            width=20,
             fill_level=1.0  # Full tank
         )
         tank.name = "horizontal_tail_fuel_tank"
@@ -170,12 +169,12 @@ class VerticalTail(Component):
         
         self.geometry.position = self.position
         
-        self.mass = 20000 # ~25% of wing mass
-        self.features.append(MassFeature(self.mass, [position.x, position.y, position.z]))
+        # Mass properties (simplified model - approximately 10% of wing mass)
+        # self.mass = 0 # ~25% of wing mass
+        # self.features.append(MassFeature(self.mass, [position.x, position.y, position.z]))
         
         # Add analysis modules
         self.add_analysis(MassAnalysis())
-
 
         # Add control surfaces
         self._add_control_surfaces()
