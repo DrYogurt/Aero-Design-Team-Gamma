@@ -9,8 +9,10 @@ from aircraft_design.analysis.lateral import aircraft_lateral_dynamics
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import json
+import os
 
-def create_stability_parameters(aircraft: Aircraft):
+def create_stability_parameters(aircraft: Aircraft,V0=None,rho=None):
     """
     Create the stability parameters dictionary and calculate dimensionless derivatives.
     
@@ -26,8 +28,8 @@ def create_stability_parameters(aircraft: Aircraft):
     # Create the parameter dictionary for dynamic stability analysis
     stability_params = {
         # Flight conditions
-        'V0': aircraft_params['airspeed'],
-        'rho': aircraft_params['density'],
+        'V0': aircraft_params['airspeed'] if V0 is None else V0,
+        'rho': aircraft_params['density'] if rho is None else rho,
         
         # Wing parameters
         'S': aircraft_params['wing_area'],
@@ -109,6 +111,11 @@ def analyze_aircraft_dynamic_stability(
     kp=[0.0, 0.0],
     kr=[0.0, 0.0],
     ko_lat=[0.0, 0.0],
+    eta=np.radians(10),
+    tau=1,
+    xi=0,
+    zeta=0,
+    tpar=[0, 0.01, 30],
     visualize=False
 ):
     """
@@ -147,12 +154,10 @@ def analyze_aircraft_dynamic_stability(
         stability_params,
     )
      # Time parameters for simulation
-    eta = np.radians(20)  # Elevator deflection in radians
-    tau = 10  # Thrust variation
     
     a_mat_lateral, b_mat_lateral = lateral_directional_matrices(aero_derivatives, stability_params)
     
-    tpar = [0, 0.01, 100]
+    #tpar = [0, 0.01, 1]
 
     short_nf, short_df, p_nf, p_df = aircraft_longitudinal_dynamics(
         stability_params['V0'],
@@ -165,9 +170,6 @@ def analyze_aircraft_dynamic_stability(
     )
 
     # Control inputs
-    xi = np.radians(10)  # Aileron deflection in radians (approximately 1 degree)
-    zeta = np.radians(10)   # Rudder deflection in radians (approximately 1 degree)
-
     dnf, ddr, Tr, Ts = aircraft_lateral_dynamics(
         stability_params['V0'],
         a_mat_lateral,
@@ -191,13 +193,16 @@ def optimize_longitudinal_gains(aircraft: Aircraft, target_values=None, base_gai
     Returns:
         dict: Optimized longitudinal gain values
     """
-    from scipy.optimize import minimize
+    from scipy.optimize import differential_evolution
+    
+    # Create directory for saving solutions if it doesn't exist
+    os.makedirs('assets/dynamic_stability/solutions', exist_ok=True)
     
     if target_values is None:
         target_values = {
-            'short_nf': (2.5,3.5), # 2.5-3.5 # Target natural frequency for short period mode
-            'short_df': (0.3,2.0),   # 0.3-2.0 # Target damping ratio for short period mode
-            'p_nf': 1e-9, # positive     # Target natural frequency for phugoid mode
+            'short_nf': (1.0,4.0), # 2.5-3.5 # Target natural frequency for short period mode
+            'short_df': (0.1,2.0),   # 0.3-2.0 # Target damping ratio for short period mode
+            'p_nf': 1e-10, # positive     # Target natural frequency for phugoid mode
             'p_df': 0.04, # min 0.04     # Target damping ratio for phugoid mode
         }
     
@@ -219,34 +224,64 @@ def optimize_longitudinal_gains(aircraft: Aircraft, target_values=None, base_gai
         # Calculate MSE
         cost = (
             # Short period mode - normalize by range width
-            10*(min(0, short_nf - target_values['short_nf'][1]) + max(0, target_values['short_nf'][0] - short_nf))**2 +
-            (min(0, short_df - target_values['short_df'][1]) + max(0, target_values['short_df'][0] - short_df))**2 +
+            (5*min(0, short_nf - target_values['short_nf'][1]) + max(0, target_values['short_nf'][0] - short_nf))**2 / (target_values['short_nf'][1] - target_values['short_nf'][0])**2 +
+            (min(0, short_df - target_values['short_df'][1]) + max(0, target_values['short_df'][0] - short_df))**2 / (target_values['short_df'][1] - target_values['short_df'][0])**2 +
             # Phugoid mode - natural frequency should be positive, normalize by target value
             (min(0, p_nf - target_values['p_nf']))**2 / (target_values['p_nf']**2 + 1e-10) +
             # Phugoid damping ratio - normalize by target value
-            (min(0, p_df - target_values['p_df']))**2 / (target_values['p_df']**2 + 1e-10)
+            (min(0, p_df - target_values['p_df']))**2 / (target_values['p_df']**2 + 1e-10) +
+            # add cost if p_nf or p_df are negative
+            (10*min(0, p_nf - 0.01))**2 +
+            (10*min(0, p_df - 0.02))**2
         )
 
         if any(np.isnan([short_nf, short_df, p_nf, p_df])):
             cost = 1e10
         print(f"Longitudinal Cost: {cost}, short_nf: {short_nf:.2f}, short_df: {short_df:.2f}, p_nf: {p_nf:.2f}, p_df: {p_df:.2f}")
         print(f"Longitudinal Gains: {gains}")
+        
+        # Save solution if it meets criteria
+        if cost < 1000 and all(x >= 0 for x in [short_nf, short_df, p_nf, p_df]):
+            solution = {
+                'gains': {
+                    'ku': ku.tolist(),
+                    'kw': kw.tolist(),
+                    'kq': kq.tolist(),
+                    'ko_long': ko_long.tolist()
+                },
+                'results': {
+                    'short_nf': float(short_nf),
+                    'short_df': float(short_df),
+                    'p_nf': float(p_nf),
+                    'p_df': float(p_df)
+                },
+                'cost': float(cost)
+            }
+            filename = f"assets/dynamic_stability/solutions/longitudinal_solution_{len(os.listdir('assets/dynamic_stability/solutions'))}.json"
+            with open(filename, 'w') as f:
+                json.dump(solution, f, indent=4)
+        
         return cost
     
-    # Initial guess (random values between -1 and 1)
-    x0 = np.random.uniform(-1, 1, 8)
+    # Bounds for all gains (-2 to 2)
+    bounds = [(-2, 0.0) for _ in range(8)]
+    
+    # Initial population centered around base_gains if provided
     if base_gains is not None:
-        x0 = base_gains
+        init = np.array(base_gains).flatten()
+        init = np.vstack([init, init + np.random.uniform(-0.5, 0.5, size=(9, 8))])
+    else:
+        init = 'latinhypercube'  # Use Latin Hypercube sampling for initial population
     
-    # Bounds for all gains (-1 to 1)
-    bounds = [(-0.001, 0.001) for _ in range(8)]
-    
-    # Optimize
-    result = minimize(
+    # Optimize using differential evolution
+    result = differential_evolution(
         cost_function,
-        x0,
         bounds=bounds,
-        #method='Nelder-Mead',
+        init=init,
+        popsize=10,
+        mutation=(0.5, 1.0),
+        recombination=0.7,
+        maxiter=50
     )
     
     # Return optimized gains in a dictionary
@@ -271,13 +306,18 @@ def optimize_lateral_gains(aircraft: Aircraft, target_values=None, base_gains=No
     Returns:
         dict: Optimized lateral gain values
     """
-    from scipy.optimize import minimize
+    from scipy.optimize import differential_evolution
+    import json
+    import os
+    
+    # Create directory for saving solutions if it doesn't exist
+    os.makedirs('assets/dynamic_stability/solutions', exist_ok=True)
     
     if target_values is None:
         target_values = {
             'dnf': 0.5, #min 0.5     # Target natural frequency for Dutch roll mode
             'ddr': 0.08, #min 0.08     # Target damping ratio for Dutch roll mode
-            'Tr': 2.5, # max 1.4   -  Target time constant for roll subsistence mode
+            'Tr': 1.4, # max 1.4   -  Target time constant for roll subsistence mode
             'Ts': 28.9 # max 28.9  - Target time constant for spiral mode
         }
     
@@ -305,7 +345,7 @@ def optimize_lateral_gains(aircraft: Aircraft, target_values=None, base_gains=No
             # Roll mode time constant - normalize by target value
             (max(0, Tr - target_values['Tr']))**2 / (target_values['Tr']**2 + 1e-10) +
             # Spiral mode time constant - normalize by target value
-            (min(0, Ts - abs(target_values['Ts'])))**2 / (abs(target_values['Ts'])**2 + 1e-10) +
+            (min(0, abs(Ts) - abs(target_values['Ts'])))**2 / (abs(target_values['Ts'])**2 + 1e-10) +
             # Ensure time constants are positive - use fixed normalization factor
             (min(0, Tr))**2
         )
@@ -313,22 +353,49 @@ def optimize_lateral_gains(aircraft: Aircraft, target_values=None, base_gains=No
             cost = 1e10
         print(f"Lateral Cost: {cost}, dnf: {dnf:.2f}, ddr: {ddr:.2f}, Tr: {Tr:.2f}, Ts: {Ts:.2f}")
         print(f"Lateral Gains: {gains}")
+        
+        # Save solution if it meets criteria
+        if cost < 1000 and all(x >= 0 for x in [dnf, ddr, Tr]):
+            solution = {
+                'gains': {
+                    'kv': kv.tolist(),
+                    'kp': kp.tolist(),
+                    'kr': kr.tolist(),
+                    'ko_lat': ko_lat.tolist()
+                },
+                'results': {
+                    'dnf': float(dnf),
+                    'ddr': float(ddr),
+                    'Tr': float(Tr),
+                    'Ts': float(Ts)
+                },
+                'cost': float(cost)
+            }
+            filename = f"assets/dynamic_stability/solutions/lateral_solution_{len(os.listdir('assets/dynamic_stability/solutions'))}.json"
+            with open(filename, 'w') as f:
+                json.dump(solution, f, indent=4)
+        
         return cost
     
-    # Initial guess (all zeros)
-    x0 = np.zeros(8)
+    # Bounds for all gains (-2 to 2)
+    bounds = [(-2, 0.0) for _ in range(8)]
+    
+    # Initial population centered around base_gains if provided
     if base_gains is not None:
-        x0 = base_gains
+        init = np.array(base_gains).flatten()
+        init = np.vstack([init, init + np.random.uniform(-0.5, 0.5, size=(9, 8))])
+    else:
+        init = 'latinhypercube'  # Use Latin Hypercube sampling for initial population
     
-    # Bounds for all gains (-1 to 1)
-    #bounds = [(-3, 3) for _ in range(8)]
-    
-    # Optimize
-    result = minimize(
+    # Optimize using differential evolution
+    result = differential_evolution(
         cost_function,
-        x0,
-        #bounds=bounds,
-        #method='Nelder-Mead',
+        bounds=bounds,
+        init=init,
+        popsize=10,
+        mutation=(0.5, 1.0),
+        recombination=0.7,
+        maxiter=50
     )
     
     # Return optimized gains in a dictionary
@@ -474,10 +541,19 @@ if __name__ == "__main__":
     print(f"short_nf: {short_nf:.2f}, short_df: {short_df:.2f}, p_nf: {p_nf:.2f}, p_df: {p_df:.2f}")
     print(f"dnf: {dnf:.2f}, ddr: {ddr:.2f}, Tr: {Tr:.2f}, Ts: {Ts:.2f}")
     
+    # Optimized Gains:
+    # ku: [ 0.18730255 -0.73363993]
+    # kw: [-1.75444213  0.06818589]
+    # kq: [ 1.44305657 -1.24073444]
+    # ko_long: [-1.58566575  1.22756497]
+    # kv: [-1.17238008  1.87642417]
+    # kp: [-1.43930591 -1.36195975]
+    # kr: [ 1.16584652 -1.02821149]
+    # ko_lat: [-0.26293357  0.32513623]
 
     test_gains = {
-        'ku': [0.5, 1], 'kw': [0, -0.5], 'kq': [0, -0.5], 'ko_long': [0.5, -0.5],
-        'kv': [0, 0], 'kp': [-0.25, 0.25], 'kr': [0.5, 0], 'ko_lat': [0.75, -0.25]
+        'ku': [0.18730255, -0.73363993], 'kw': [-1.75444213, 0.06818589], 'kq': [1.44305657, -1.24073444], 'ko_long': [-1.58566575, 1.22756497],
+        'kv': [-1.17238008, 1.87642417], 'kp': [-1.43930591, -1.36195975], 'kr': [1.16584652, -1.02821149], 'ko_lat': [-0.26293357, 0.32513623]
     }
 
     short_nf, short_df, p_nf, p_df, dnf, ddr, Tr, Ts = analyze_aircraft_dynamic_stability(aircraft, **test_gains, visualize=True)
@@ -487,14 +563,23 @@ if __name__ == "__main__":
 
     # Plot sensitivity for each gain
     print("\nGenerating gain sensitivity plots...")
-    for gain in ['ku', 'kw', 'kq', 'ko_long', 'kv', 'kp', 'kr', 'ko_lat']:
+    for gain in []: #['ku', 'kw', 'kq', 'ko_long', 'kv', 'kp', 'kr', 'ko_lat']:
         print(f"Plotting {gain} sensitivity...")
         plot_gain_sensitivity(aircraft, gain, base_gains=test_gains)
-    exit()
+    #exit()
     
+    """
+    Longitudinal Gains: [-2.06670559  2.86540812 -2.32443763  0.86569035  2.53933078  1.40573144
+ -1.61506292 -1.65968395]
+Longitudinal Cost: 1776.9980923759329, short_nf: 3.79, short_df: 0.40, p_nf: 0.10, p_df: 0.40
+Longitudinal Gains: [ 0.66157656 -2.2855221  -0.10413784  0.4170549   0.67152579 -1.63359753
+ -1.75392834 -1.89950559]
+
+    """
+
     # Optimize the longitudinal stability characteristics
     print("\nOptimizing longitudinal stability characteristics...")
-    longitudinal_gains = optimize_longitudinal_gains(aircraft)
+    longitudinal_gains = {}# optimize_longitudinal_gains(aircraft)
     
     # Optimize the lateral stability characteristics
     print("\nOptimizing lateral stability characteristics...")
@@ -517,7 +602,7 @@ if __name__ == "__main__":
         visualize=True  
     )
     
-    # Print the optimized results
-    for key, value in optimized_results.items():
-        print(f"{key},\t{value:.4f}")
+    print(f"short_nf: {optimized_results[0]:.2f}, short_df: {optimized_results[1]:.2f}, p_nf: {optimized_results[2]:.2f}, p_df: {optimized_results[3]:.2f}")
+    print(f"dnf: {optimized_results[4]:.2f}, ddr: {optimized_results[5]:.2f}, Tr: {optimized_results[6]:.2f}, Ts: {optimized_results[7]:.2f}")
     print("Optimization completed successfully.")
+

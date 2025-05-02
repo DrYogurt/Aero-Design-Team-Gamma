@@ -543,5 +543,5 @@ def plot_cg(ax: plt.Axes, cg_x: float, cg_y: float, marker='x', color='blue', ma
             markeredgewidth=2, label=label)
     
     # Add a circle around the marker for better visibility
-    circle = plt.Circle((cg_x, cg_y), markersize/50, fill=False, color=color, linewidth=1.5)
+    circle = plt.Circle((cg_x, cg_y), markersize/10, fill=False, color=color, linewidth=1.5)
     ax.add_patch(circle) 

@@ -99,19 +99,20 @@ class Wing(Component):
         )
         
         # Set mass properties manually
-        tank_mass = 6e5 -5.4e4 # lbs
-        tank_cg_x = 231.05 / 12  # Convert inches to feet
+        tank_mass = 574158.96 # lbs
+        tank_cg_x = 506.39 / 12  # Convert inches to feet
         tank_cg_y = 0.0
-        tank_cg_z = 36.04 / 12  # Convert inches to feet
+        tank_cg_z = 105.77 / 12  # Convert inches to feet
         
-
-        tank_ixx = 375871650626.54 / 144 #zz
-        tank_iyy = 79516660699.40 / 144  #xx
-        tank_izz = 450089349039.73 / 144 #yy
-        tank_ixy = -10319345.66 / 144   #zx
-        tank_ixz = -310505932.55 / 144   #zy
-        tank_iyz = -18567.36 / 144       #yx
-
+        # Values from solidworks: 4/21/2025
+        tank_ixx = 353119746896.24 / 144 #zz
+        tank_iyy = 44334566075.84 / 144  #xx
+        tank_izz = 395944525270.18 / 144 #yy
+        tank_ixy = -6763537.88 / 144   #zx
+        tank_ixz = -5261108055.05 / 144   #zy
+        tank_iyz = -618219.69 / 144       #yx
+        tank.full_mass = tank_mass
+        tank.volume = tank_mass / tank.fuel_density
         tank.features[0].parameters.update({
             "mass": tank_mass,
             "center_of_gravity": [tank_cg_x, tank_cg_y, tank_cg_z],

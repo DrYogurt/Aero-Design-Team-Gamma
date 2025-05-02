@@ -62,7 +62,7 @@ class HorizontalTail(Component):
 
         # Add fuel tank capable of storing 540 ft 3 of fuel
         tank = FuelTank(
-            length=18,
+            length=9,
             front_height=3,  # 10% of root chord
             back_height=3,  # 10% of root chord
             width=20,

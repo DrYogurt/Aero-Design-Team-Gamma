@@ -18,9 +18,9 @@ def aircraft_to_parameters(aircraft: Aircraft):
     wing_zero = wing.position.x
 
     cg_absolute_position = aircraft.get_mass_properties()['cg_x']
-    mac = wing.mean_aerodynamic_chord
-    mean_wingtip_position = wing_zero + distance_AC_behind_quarter_chord(wing.taper_ratio, wing.parameters['span'], wing.parameters['le_sweep'])
-
+    mac = wing.mean_aerodynamic_chord * 1.2
+    mean_wingtip_position = -5 +  wing_zero + distance_AC_behind_quarter_chord(wing.taper_ratio, wing.parameters['span'], wing.parameters['le_sweep'])
+    #print(f"mean_wingtip_position: {mean_wingtip_position}")
     # Get tail incidence angle from orientation
     tail_incidence_deg = htail.orientation.pitch
     tail_incidence_rad = np.radians(1)
@@ -75,7 +75,7 @@ def aircraft_to_parameters(aircraft: Aircraft):
         'aircraft_weight': aircraft.get_mass_properties()['total_mass'],
         'airspeed': 0.9 * 1116.45,    # 90% of design speed
         'density': 0.00237717,       # Air density at altitude
-        'alpha': np.radians(0),     # Initial angle of attack
+        'alpha': np.radians(2.6),     # Initial angle of attack
         'optimize_tail_incidence': True,
 
         #'sideslip': 0               # No sideslip
@@ -355,6 +355,8 @@ def analyze_final_parameters(result, aircraft: Aircraft):
 if __name__ == "__main__":
     aircraft = Aircraft()
     aircraft_params = aircraft_to_parameters(aircraft)
+    print(aircraft_params)
+    exit()
     # supress runtime warnings until the optimization is complete
     warnings.filterwarnings("ignore")
     print("Starting stability optimization...")

@@ -632,7 +632,6 @@ def longitudinal_stability_analysis(aircraft_params):
     d_epsilon_d_alpha = aircraft_params.get('d_epsilon_d_alpha', 0.4)  # Typical value
     CD_0 = aircraft_params['CD_0']
     optimize_tail_incidence = aircraft_params.get('optimize_tail_incidence', False)
-    
     # Calculate horizontal tail volume ratio
     VH = (St * lt) / (S * c)
 

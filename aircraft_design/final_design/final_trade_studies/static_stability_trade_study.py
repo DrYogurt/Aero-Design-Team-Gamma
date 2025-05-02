@@ -177,7 +177,7 @@ def fuel_distribution_stability_study(aircraft: Aircraft):
 
 def analyze_aircraft_static_stability(aircraft: Aircraft, landing_configuration = False, output_filename = None):
     """
-    Perform comprehensive stability analysis on an aircraft and save results to a JSON file.
+    Perform static stability analysis on an aircraft and save results to a JSON file.
     
     Parameters:
     aircraft: Aircraft object to analyze
@@ -206,8 +206,8 @@ def analyze_aircraft_static_stability(aircraft: Aircraft, landing_configuration 
         
     
     # Run mass analysis to get current mass properties
-    aircraft.run_analysis('mass_analysis', analyze_children=True)
-    mass_results = aircraft.analysis_results['mass_analysis']
+    #aircraft.run_analysis('mass_analysis', analyze_children=True)
+    #mass_results = aircraft.analysis_results['mass_analysis']
     
     # Get aircraft parameters
     aircraft_params = aircraft_to_parameters(aircraft)
@@ -233,7 +233,7 @@ def analyze_aircraft_static_stability(aircraft: Aircraft, landing_configuration 
     # Create comprehensive results dictionary
     analysis_results = {
         'aircraft_parameters': aircraft_params,
-        'mass_properties': mass_results,
+        #'mass_properties': mass_results,
         'tail_volumes': {
             'horizontal_tail_volume': h_tail_volume,
             'vertical_tail_volume': v_tail_volume
@@ -283,8 +283,8 @@ if __name__ == "__main__":
     aircraft = Aircraft()
     
     #fuel_distribution_stability_study(aircraft)
-    print("Fuel distribution stability study completed.")
+    #print("Fuel distribution stability study completed.")
     
-    analyze_aircraft_static_stability(aircraft, "static_stability_analysis.json")
+    stability_results = analyze_aircraft_static_stability(aircraft, "static_stability_analysis.json")
     print("Static stability analysis completed.")
-    
+    pprint(stability_results)

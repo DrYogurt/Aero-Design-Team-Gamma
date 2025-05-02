@@ -20,6 +20,7 @@ from aircraft_design.final_design.final_tails import HorizontalTail, VerticalTai
 from aircraft_design.components.propulsion.engine import Engine
 from aircraft_design.components.propulsion.fuel_tanks import FuelTank
 from aircraft_design.final_design.final_landing_gear import LandingGear
+from aircraft_design.final_design.final_trade_studies.plot_aircraft_tree import plot_component_tree
 
 class Aircraft(Component):
     """Main aircraft component that combines wing, cabin, and fuselage"""
@@ -207,10 +208,35 @@ class Aircraft(Component):
         )
         self.add_child(rear_gear_right)
 
+        self._add_mass_analysis()
 
-        # Add mass analysis
+        
+    def _add_mass_analysis(self):
+        mass_lb = 537320.39
+        cg_x_in = 1629.02
+        cg_y_in = 9.6*12 #manually putting it in the center of the fuselage
+        cg_z_in = 55.21
+        ixx_lb_in2 = 177346197504.75
+        iyy_lb_in2 = 238380365886.68
+        ixy_lb_in2 = -14776943404.44
+        izz_lb_in2 = 396716282279.44
+        ixz_lb_in2 = -1176631.81
+        iyz_lb_in2 = -5113309.60
+
+        overall_mass_feature = MassFeature(
+                    mass=mass_lb,
+                    center_of_gravity=[cg_x_in / 12, cg_y_in / 12, cg_z_in / 12],
+                    ixx=ixx_lb_in2 / 144,
+                    iyy=iyy_lb_in2 / 144,
+                    izz=izz_lb_in2 / 144,
+                    ixy=ixy_lb_in2 / 144,
+                    ixz=ixz_lb_in2 / 144,
+                    iyz=iyz_lb_in2 / 144
+                )
+
+        self.add_feature(overall_mass_feature)
         self.add_analysis(MassAnalysis())
-    
+
     def get_mass_properties(self):
         """Get mass properties of the complete aircraft"""
         # Run mass analysis on the entire aircraft
@@ -280,6 +306,9 @@ class Aircraft(Component):
 if __name__ == "__main__":
     # Create an aircraft instance
     aircraft = Aircraft()
+    
+    # Plot the component hierarchy
+    plot_component_tree(aircraft, max_depth=3, save_path='assets/aircraft_component_tree.png')
     
     # Now test with full tanks
     print("\n=== Aircraft Properties with Full Tanks ===")
